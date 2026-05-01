@@ -1,0 +1,55 @@
+checkpoint_every: 1000
+collocation_method: uniform
+experiment_name: stage4_weibull_p3_v7
+gradient_clip: 1.0
+loss_weights:
+  ic: 1.0
+  min_slope: 1.0
+  min_slope_margin: 0.5
+  mle: 1.0
+  monotonic: 0.1
+  ode: 1.0
+  pl: 0.25
+lr: 0.0003
+lr_beta: 0.001
+lr_patience: 200
+lr_scheduler: reduce_on_plateau
+model_config:
+  coefficient:
+    activation: silu
+    hidden_dims:
+    - 64
+    - 64
+    time_features:
+    - t
+    - log_t
+    use_layer_norm: false
+  n_covariates: 3
+  surrogate:
+    activation: silu
+    hidden_dims:
+    - 64
+    - 64
+    - 64
+    use_layer_norm: false
+n_collocation_points: 500
+n_epochs: 20000
+optimizer_name: adamw
+rationale: v6 improved the tail but still underfit the increasing Weibull hazard.
+  Increase the minimum normalized-time gamma slope margin from 0.25 to 0.5, closer
+  to the true Weibull tail slope for this simulated time range.
+simulation_config:
+  baseline: WeibullBaseline
+  baseline_params:
+    k: 1.5
+    lam: 0.5
+  beta:
+  - 1.0
+  - -0.5
+  - 0.3
+  censoring_rate: 0.3
+  censoring_type: random_exponential
+  n_covariates: 3
+  n_samples: 1000
+  random_seed: 42
+weight_decay: 0.0001

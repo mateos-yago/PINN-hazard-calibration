@@ -116,6 +116,15 @@ All three must hold simultaneously before a stage is considered complete:
 
 These values are stored in `experiments/results/{name}/metrics.json` after each run.
 
+Baseline hazard evaluation now uses a slightly expanded upper time window:
+`hazard_time_extension: 0.10` evaluates through `1.1` in normalized time, while keeping
+the lower bound at the observed minimum. The threshold remains `0.05`; Stage 1 still
+passes under this expanded window, so relaxing the threshold was not necessary.
+
+Evaluation also converts learned beta coefficients back from standardized covariates to
+the original covariate scale, and adjusts the learned standardized-covariate baseline
+back to the simulator's original `x=0` baseline before computing hazard IRMSE.
+
 ---
 
 ## 5. Diagnostic Guide — Reading Loss History

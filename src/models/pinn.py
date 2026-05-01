@@ -73,6 +73,8 @@ class HazardPINN(nn.Module):
             coefficient.hidden_dims: list[int]
             coefficient.activation: str
             coefficient.use_layer_norm: bool (optional, default False)
+            coefficient.time_features: list[str] (optional, default ["t"])
+            coefficient.log_time_offset: float (optional, default 1e-6)
         """
         p = config["n_covariates"]
         s_cfg = config.get("surrogate", {})
@@ -88,5 +90,7 @@ class HazardPINN(nn.Module):
             hidden_dims=c_cfg.get("hidden_dims", [32, 32]),
             activation=c_cfg.get("activation", "tanh"),
             use_layer_norm=c_cfg.get("use_layer_norm", False),
+            time_features=c_cfg.get("time_features", ["t"]),
+            log_time_offset=c_cfg.get("log_time_offset", 1e-6),
         )
         return cls(surrogate, coefficient, n_covariates=p)

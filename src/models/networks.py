@@ -72,9 +72,31 @@ class CoefficientNetwork(nn.Module):
         hidden_dims: List[int] = (32, 32),
         activation: str = "tanh",
         use_layer_norm: bool = False,
+        time_features: List[str] = ("t",),
+        log_time_offset: float = 1e-6,
     ):
         super().__init__()
-        self.net = _build_mlp(1, list(hidden_dims), 1, activation, use_layer_norm)
+        self.time_features = list(time_features)
+        self.log_time_offset = float(log_time_offset)
+        valid = {"t", "log_t", "log_t_shifted"}
+        unknown = set(self.time_features) - valid
+        if unknown:
+            raise ValueError(f"Unknown coefficient time features: {sorted(unknown)}")
+        self.net = _build_mlp(
+            len(self.time_features), list(hidden_dims), 1, activation, use_layer_norm
+        )
+
+    def _transform_time(self, t: torch.Tensor) -> torch.Tensor:
+        features = []
+        for feature in self.time_features:
+            if feature == "t":
+                features.append(t)
+            elif feature == "log_t":
+                features.append(torch.log(torch.clamp(t, min=1e-6)))
+            elif feature == "log_t_shifted":
+                shifted = torch.clamp(t + self.log_time_offset, min=1e-6)
+                features.append(torch.log(shifted))
+        return torch.cat(features, dim=1)
 
     def forward(self, t: torch.Tensor) -> torch.Tensor:
         """
@@ -83,4 +105,4 @@ class CoefficientNetwork(nn.Module):
         Returns:
             γ̂: shape [batch, 1]
         """
-        return self.net(t)
+        return self.net(self._transform_time(t))

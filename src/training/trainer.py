@@ -25,6 +25,7 @@ class ExperimentConfig:
     n_epochs: int = 1000
     lr: float = 1e-3
     lr_beta: Optional[float] = None  # separate LR for β; defaults to lr if None
+    lr_coefficient: Optional[float] = None  # separate LR for gamma network; defaults to lr
     optimizer_name: str = "adam"
     weight_decay: float = 0.0
     n_collocation_points: int = 200
@@ -53,12 +54,13 @@ class Trainer:
         name = self.config.optimizer_name.lower()
         lr = self.config.lr
         lr_beta = self.config.lr_beta if self.config.lr_beta is not None else lr
+        lr_coefficient = self.config.lr_coefficient if self.config.lr_coefficient is not None else lr
         wd = self.config.weight_decay
 
-        # Use separate parameter groups so β can have a different LR
-        network_params = list(self.model.surrogate.parameters()) + list(self.model.coefficient.parameters())
+        # Use separate parameter groups so beta and gamma can have different LRs
         param_groups = [
-            {"params": network_params, "lr": lr, "weight_decay": wd},
+            {"params": list(self.model.surrogate.parameters()), "lr": lr, "weight_decay": wd},
+            {"params": list(self.model.coefficient.parameters()), "lr": lr_coefficient, "weight_decay": wd},
             {"params": [self.model.beta], "lr": lr_beta, "weight_decay": 0.0},
         ]
 
@@ -88,7 +90,17 @@ class Trainer:
         """
         optimizer = self._build_optimizer()
         scheduler = self._build_scheduler(optimizer)
-        history: Dict[str, List] = {"epoch": [], "total": [], "mle": [], "pl": [], "ode": [], "ic": []}
+        history: Dict[str, List] = {
+            "epoch": [],
+            "total": [],
+            "mle": [],
+            "pl": [],
+            "ode": [],
+            "ic": [],
+            "monotonic": [],
+            "min_slope": [],
+            "baseline_ref": [],
+        }
 
         t_col, x_col = dataset.get_collocation_points(
             self.config.n_collocation_points,
@@ -117,7 +129,7 @@ class Trainer:
             total_val = total_loss.item()
             history["epoch"].append(epoch)
             history["total"].append(total_val)
-            for k in ("mle", "pl", "ode", "ic"):
+            for k in ("mle", "pl", "ode", "ic", "monotonic", "min_slope", "baseline_ref"):
                 history[k].append(components.get(k, 0.0))
 
             if total_val < self._best_loss:
@@ -133,6 +145,9 @@ class Trainer:
                     f"pl={components.get('pl', 0):.4f}  "
                     f"ode={components.get('ode', 0):.4f}  "
                     f"ic={components.get('ic', 0):.4f}  "
+                    f"mono={components.get('monotonic', 0):.4f}  "
+                    f"slope={components.get('min_slope', 0):.4f}  "
+                    f"ref={components.get('baseline_ref', 0):.4f}  "
                     f"({elapsed:.1f}s)"
                 )
 

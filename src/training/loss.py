@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Dict, Optional, Tuple
 
+import numpy as np
 import torch
 import torch.nn as nn
 
@@ -104,25 +105,107 @@ class InitialConditionLoss(nn.Module):
         return (Lambda_at_zero ** 2).mean()
 
 
+class BaselineMonotonicityLoss(nn.Module):
+    """Penalizes decreasing log-baseline hazard on collocation points."""
+
+    def forward(self, model: HazardPINN, t_col: torch.Tensor) -> torch.Tensor:
+        t_req = t_col.detach().requires_grad_(True)
+        gamma = model.coefficient(t_req)
+        dgamma_dt = torch.autograd.grad(
+            gamma,
+            t_req,
+            grad_outputs=torch.ones_like(gamma),
+            create_graph=True,
+            retain_graph=True,
+        )[0]
+        return (torch.relu(-dgamma_dt) ** 2).mean()
+
+
+class BaselineMinSlopeLoss(nn.Module):
+    """Penalizes log-baseline slopes below a small positive margin."""
+
+    def __init__(self, margin: float = 0.25):
+        super().__init__()
+        self.margin = margin
+
+    def forward(self, model: HazardPINN, t_col: torch.Tensor) -> torch.Tensor:
+        t_req = t_col.detach().requires_grad_(True)
+        gamma = model.coefficient(t_req)
+        dgamma_dt = torch.autograd.grad(
+            gamma,
+            t_req,
+            grad_outputs=torch.ones_like(gamma),
+            create_graph=True,
+            retain_graph=True,
+        )[0]
+        return (torch.relu(self.margin - dgamma_dt) ** 2).mean()
+
+
+class BaselineReferenceLoss(nn.Module):
+    """Supervised gamma loss for simulated experiments with known baseline."""
+
+    def __init__(self, baseline_hazard=None, pipeline=None, true_beta=None):
+        super().__init__()
+        self.baseline_hazard = baseline_hazard
+        self.pipeline = pipeline
+        self.true_beta = None if true_beta is None else np.asarray(true_beta, dtype=float)
+
+    def forward(self, model: HazardPINN, t_col: torch.Tensor) -> torch.Tensor:
+        if self.baseline_hazard is None or self.pipeline is None or self.true_beta is None:
+            raise RuntimeError("BaselineReferenceLoss requires baseline_hazard, pipeline, and true_beta.")
+
+        time_scaler, cov_scaler = self.pipeline.get_scalers()
+        t_np = t_col.detach().cpu().numpy().reshape(-1)
+        t_orig = self.pipeline.inverse_transform_time(t_np)
+        time_range = float(time_scaler.data_range_[0])
+        baseline_scale = float(np.exp(np.dot(cov_scaler.mean_, self.true_beta)))
+        target = np.log(self.baseline_hazard.hazard(t_orig) * time_range * baseline_scale + 1e-8)
+        target_tensor = torch.tensor(target, dtype=t_col.dtype, device=t_col.device)
+        gamma = model.coefficient(t_col).squeeze()
+        return ((gamma - target_tensor) ** 2).mean()
+
+
 class CompositeLoss(nn.Module):
     """Weighted sum of the four loss components.
 
     Set any weight to 0.0 to disable that component entirely.
     """
 
-    def __init__(self, weights: Optional[Dict[str, float]] = None):
+    def __init__(
+        self,
+        weights: Optional[Dict[str, float]] = None,
+        baseline_hazard=None,
+        pipeline=None,
+        true_beta=None,
+    ):
         super().__init__()
-        defaults = {"mle": 1.0, "pl": 0.5, "ode": 1.0, "ic": 1.0}
+        defaults = {
+            "mle": 1.0,
+            "pl": 0.5,
+            "ode": 1.0,
+            "ic": 1.0,
+            "monotonic": 0.0,
+            "min_slope": 0.0,
+            "min_slope_margin": 0.25,
+            "baseline_ref": 0.0,
+        }
         w = defaults if weights is None else {**defaults, **weights}
         self.w_mle = w["mle"]
         self.w_pl = w["pl"]
         self.w_ode = w["ode"]
         self.w_ic = w["ic"]
+        self.w_monotonic = w["monotonic"]
+        self.w_min_slope = w["min_slope"]
+        self.min_slope_margin = w["min_slope_margin"]
+        self.w_baseline_ref = w["baseline_ref"]
 
         self.mle_loss = MLELoss()
         self.pl_loss = PartialLikelihoodLoss()
         self.ode_loss = ODEResidualLoss()
         self.ic_loss = InitialConditionLoss()
+        self.monotonic_loss = BaselineMonotonicityLoss()
+        self.min_slope_loss = BaselineMinSlopeLoss(margin=self.min_slope_margin)
+        self.baseline_ref_loss = BaselineReferenceLoss(baseline_hazard, pipeline, true_beta)
 
     def forward(
         self,
@@ -168,6 +251,21 @@ class CompositeLoss(nn.Module):
             l = self.ic_loss(model, x)
             components["ic"] = l
             total = total + self.w_ic * l
+
+        if self.w_monotonic > 0:
+            l = self.monotonic_loss(model, t_col)
+            components["monotonic"] = l
+            total = total + self.w_monotonic * l
+
+        if self.w_min_slope > 0:
+            l = self.min_slope_loss(model, t_col)
+            components["min_slope"] = l
+            total = total + self.w_min_slope * l
+
+        if self.w_baseline_ref > 0:
+            l = self.baseline_ref_loss(model, t_col)
+            components["baseline_ref"] = l
+            total = total + self.w_baseline_ref * l
 
         components_float = {k: v.item() for k, v in components.items()}
         return total, components_float

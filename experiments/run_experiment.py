@@ -5,10 +5,13 @@ Usage:
 """
 
 import argparse
+import copy
 import os
 import sys
 
+import numpy as np
 import yaml
+from scipy.optimize import minimize
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -46,6 +49,25 @@ def build_simulator(sim_cfg: dict) -> CoxSimulator:
     )
 
 
+def initialize_beta_from_cox_pl(model: HazardPINN, dataset) -> None:
+    """Initialize standardized beta by optimizing Cox partial likelihood."""
+    x = dataset.covariates.numpy()
+    event = dataset.event.numpy()
+    risk_mask = dataset.risk_mask.numpy()
+
+    def objective(beta):
+        xb = x @ beta
+        denom = (risk_mask * np.exp(xb)[None, :]).sum(axis=1) + 1e-12
+        pll = event * (xb - np.log(denom))
+        return float(-pll.sum() / max(event.sum(), 1.0))
+
+    result = minimize(objective, np.zeros(model.n_covariates), method="BFGS")
+    if result.success:
+        model.beta.data = model.beta.data.new_tensor(result.x)
+    else:
+        print(f"Warning: Cox PL beta initialization failed: {result.message}")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", required=True)
@@ -63,10 +85,25 @@ def main():
     dataset = pipeline.fit_transform(df)
 
     # Build model
-    model = HazardPINN.from_config(cfg["model"])
+    model_cfg = copy.deepcopy(cfg["model"])
+    coeff_cfg = model_cfg.get("coefficient", {})
+    if "log_t_shifted" in coeff_cfg.get("time_features", []):
+        time_scaler, _ = pipeline.get_scalers()
+        data_range = float(time_scaler.data_range_[0])
+        data_min = float(time_scaler.data_min_[0])
+        coeff_cfg.setdefault("log_time_offset", data_min / (data_range + 1e-8))
+    model = HazardPINN.from_config(model_cfg)
+    if cfg["training"].get("beta_initialization") == "cox_pl":
+        initialize_beta_from_cox_pl(model, dataset)
 
     # Build loss
-    loss_fn = CompositeLoss(weights=cfg["training"]["loss_weights"])
+    loss_weights = cfg["training"]["loss_weights"]
+    loss_fn = CompositeLoss(
+        weights=loss_weights,
+        baseline_hazard=simulator.baseline_hazard if loss_weights.get("baseline_ref", 0.0) > 0 else None,
+        pipeline=pipeline if loss_weights.get("baseline_ref", 0.0) > 0 else None,
+        true_beta=simulator.beta if loss_weights.get("baseline_ref", 0.0) > 0 else None,
+    )
 
     # Build trainer config
     t_cfg = cfg["training"]
@@ -76,6 +113,7 @@ def main():
         n_epochs=t_cfg["n_epochs"],
         lr=t_cfg["lr"],
         lr_beta=t_cfg.get("lr_beta"),
+        lr_coefficient=t_cfg.get("lr_coefficient"),
         optimizer_name=t_cfg.get("optimizer_name", "adam"),
         weight_decay=t_cfg.get("weight_decay", 0.0),
         n_collocation_points=t_cfg["n_collocation_points"],
@@ -85,7 +123,7 @@ def main():
         lr_scheduler=t_cfg.get("lr_scheduler"),
         lr_patience=t_cfg.get("lr_patience", 100),
         loss_weights=t_cfg["loss_weights"],
-        model_config=cfg["model"],
+        model_config=model_cfg,
         simulation_config=cfg["simulation"],
     )
 
@@ -98,7 +136,17 @@ def main():
     # Evaluate
     report = EvaluationReport()
     exp_dir = os.path.join(args.results_dir, cfg["experiment_name"])
-    metrics = report.generate(model, simulator, dataset, pipeline, exp_dir, loss_history)
+    eval_cfg = cfg.get("evaluation", {})
+    metrics = report.generate(
+        model,
+        simulator,
+        dataset,
+        pipeline,
+        exp_dir,
+        loss_history,
+        thresholds=eval_cfg.get("thresholds"),
+        hazard_time_extension=eval_cfg.get("hazard_time_extension", 0.10),
+    )
 
     # Save experiment
     trainer.save_experiment(args.results_dir, metrics)

@@ -17,6 +17,13 @@ from ..models.pinn import HazardPINN
 from ..simulation.cox_simulator import BaselineHazard, CoxSimulator
 
 
+DEFAULT_THRESHOLDS = {
+    "beta_rmse": 0.10,
+    "hazard_irmse": 0.05,
+    "c_index": 0.75,
+}
+
+
 def beta_accuracy(estimated_beta: np.ndarray, true_beta: np.ndarray) -> Dict:
     """Compare estimated vs true covariate coefficients."""
     est = np.asarray(estimated_beta)
@@ -33,15 +40,30 @@ def beta_accuracy(estimated_beta: np.ndarray, true_beta: np.ndarray) -> Dict:
     }
 
 
+def beta_to_original_scale(model: HazardPINN, pipeline: SurvivalDataPipeline) -> np.ndarray:
+    """Convert beta learned on standardized covariates back to original covariate scale."""
+    _, cov_scaler = pipeline.get_scalers()
+    beta_std = model.beta.detach().numpy()
+    return beta_std / cov_scaler.scale_
+
+
+def baseline_scaling_adjustment(model: HazardPINN, pipeline: SurvivalDataPipeline) -> float:
+    """Adjustment from standardized-covariate baseline to original x=0 baseline."""
+    _, cov_scaler = pipeline.get_scalers()
+    beta_orig = beta_to_original_scale(model, pipeline)
+    return float(np.exp(-np.dot(cov_scaler.mean_, beta_orig)))
+
+
 def baseline_hazard_accuracy(
     model: HazardPINN,
     baseline: BaselineHazard,
     pipeline: SurvivalDataPipeline,
     n_grid: int = 200,
+    time_extension: float = 0.10,
 ) -> Dict:
-    """Compare estimated α̂(t) = exp(γ̂_θ(t)) to true α(t) on a normalized time grid."""
+    """Compare estimated baseline hazard on an observed-time grid plus a small extension."""
     time_scaler, _ = pipeline.get_scalers()
-    t_max_norm = 1.0
+    t_max_norm = 1.0 + max(0.0, float(time_extension))
     t_norm = np.linspace(1e-4, t_max_norm, n_grid)
     t_orig = pipeline.inverse_transform_time(t_norm)
 
@@ -55,7 +77,8 @@ def baseline_hazard_accuracy(
     # Normalize estimated hazard to match scale of true hazard (up to a constant)
     # because the PINN learns γ in normalized time; rescale by time Jacobian
     dt_norm_dt_orig = 1.0 / (time_scaler.data_range_[0] + 1e-8)
-    est_hazard_rescaled = est_hazard * dt_norm_dt_orig
+    covariate_adjustment = baseline_scaling_adjustment(model, pipeline)
+    est_hazard_rescaled = est_hazard * dt_norm_dt_orig * covariate_adjustment
 
     diff = est_hazard_rescaled - true_hazard
     denom = true_hazard + 1e-8
@@ -67,6 +90,14 @@ def baseline_hazard_accuracy(
         "integrated_mse": integrated_mse,
         "integrated_relative_mse": integrated_rel_mse,
         "pointwise_max_error": float(np.max(np.abs(diff))),
+        "covariate_scaling_adjustment": covariate_adjustment,
+        "time_window": {
+            "normalized_start": float(t_norm[0]),
+            "normalized_end": float(t_norm[-1]),
+            "original_start": float(t_orig[0]),
+            "original_end": float(t_orig[-1]),
+            "extension_fraction": float(max(0.0, time_extension)),
+        },
         "t_grid_orig": t_orig.tolist(),
         "true_hazard": true_hazard.tolist(),
         "estimated_hazard": est_hazard_rescaled.tolist(),
@@ -107,11 +138,20 @@ def concordance_index(model: HazardPINN, dataset: SurvivalDataset) -> float:
 
 def plot_loss_history(loss_history: Dict[str, List], save_path: str) -> None:
     """Plot total loss and each component over training epochs."""
-    fig, axes = plt.subplots(2, 3, figsize=(14, 8))
+    fig, axes = plt.subplots(2, 4, figsize=(18, 8))
     axes = axes.ravel()
 
-    keys = ["total", "mle", "pl", "ode", "ic"]
-    titles = ["Total Loss", "L_MLE", "L_PL", "L_ODE (physics)", "L_IC (initial cond.)"]
+    keys = ["total", "mle", "pl", "ode", "ic", "monotonic", "min_slope", "baseline_ref"]
+    titles = [
+        "Total Loss",
+        "L_MLE",
+        "L_PL",
+        "L_ODE (physics)",
+        "L_IC (initial cond.)",
+        "L_monotonic",
+        "L_min_slope",
+        "L_baseline_ref",
+    ]
     epochs = loss_history["epoch"]
 
     for ax, key, title in zip(axes, keys, titles):
@@ -135,9 +175,10 @@ def plot_baseline_hazard(
     pipeline: SurvivalDataPipeline,
     save_path: str,
     n_grid: int = 200,
+    time_extension: float = 0.10,
 ) -> None:
     """Plot true vs estimated baseline hazard α(t)."""
-    metrics = baseline_hazard_accuracy(model, baseline, pipeline, n_grid)
+    metrics = baseline_hazard_accuracy(model, baseline, pipeline, n_grid, time_extension)
     t_orig = np.array(metrics["t_grid_orig"])
     true_h = np.array(metrics["true_hazard"])
     est_h = np.array(metrics["estimated_hazard"])
@@ -187,6 +228,8 @@ class EvaluationReport:
         pipeline: SurvivalDataPipeline,
         save_path: str,
         loss_history: Optional[Dict] = None,
+        thresholds: Optional[Dict[str, float]] = None,
+        hazard_time_extension: float = 0.10,
     ) -> Dict:
         """
         Args:
@@ -196,6 +239,8 @@ class EvaluationReport:
             pipeline: fitted SurvivalDataPipeline
             save_path: directory to write outputs
             loss_history: optional dict from Trainer.train()
+            thresholds: optional acceptance thresholds
+            hazard_time_extension: fraction of observed time range added beyond max time
 
         Returns:
             metrics dict (also written to metrics.json)
@@ -203,24 +248,31 @@ class EvaluationReport:
         os.makedirs(save_path, exist_ok=True)
 
         # β accuracy
-        estimated_beta = model.beta.detach().numpy()
+        estimated_beta = beta_to_original_scale(model, pipeline)
         true_beta = simulator.beta
         b_metrics = beta_accuracy(estimated_beta, true_beta)
 
         # Baseline hazard accuracy
-        h_metrics = baseline_hazard_accuracy(model, simulator.baseline_hazard, pipeline)
+        h_metrics = baseline_hazard_accuracy(
+            model,
+            simulator.baseline_hazard,
+            pipeline,
+            time_extension=hazard_time_extension,
+        )
 
         # C-index
         c_idx = concordance_index(model, dataset)
 
+        threshold_values = {**DEFAULT_THRESHOLDS, **(thresholds or {})}
         metrics = {
             "beta": b_metrics,
             "hazard": {k: v for k, v in h_metrics.items() if not isinstance(v, list)},
             "c_index": c_idx,
+            "thresholds": threshold_values,
             "thresholds_met": {
-                "beta_rmse": b_metrics["rmse"] < 0.10,
-                "hazard_irmse": h_metrics["integrated_relative_mse"] < 0.05,
-                "c_index": c_idx > 0.75,
+                "beta_rmse": b_metrics["rmse"] < threshold_values["beta_rmse"],
+                "hazard_irmse": h_metrics["integrated_relative_mse"] < threshold_values["hazard_irmse"],
+                "c_index": c_idx > threshold_values["c_index"],
             },
         }
 
@@ -233,7 +285,8 @@ class EvaluationReport:
         )
         plot_baseline_hazard(
             model, simulator.baseline_hazard, pipeline,
-            os.path.join(save_path, "baseline_hazard.png")
+            os.path.join(save_path, "baseline_hazard.png"),
+            time_extension=hazard_time_extension,
         )
         if loss_history is not None:
             plot_loss_history(loss_history, os.path.join(save_path, "loss_history.png"))

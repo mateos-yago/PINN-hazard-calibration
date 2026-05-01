@@ -1,0 +1,57 @@
+# Stage 4 v5: Minimum positive gamma slope for Weibull tail
+
+experiment_name: stage4_weibull_p3_v5
+rationale: "Stage 4 models pass beta and C-index but flatten the increasing Weibull
+  baseline in the tail. Add a minimum-slope gamma penalty to keep the log-baseline
+  hazard rising over the extended time window."
+
+simulation:
+  baseline: WeibullBaseline
+  baseline_params:
+    k: 1.5
+    lam: 0.5
+  beta: [1.0, -0.5, 0.3]
+  n_covariates: 3
+  censoring_rate: 0.3
+  censoring_type: random_exponential
+  n_samples: 1000
+  random_seed: 42
+
+model:
+  n_covariates: 3
+  surrogate:
+    hidden_dims: [64, 64, 64]
+    activation: silu
+    use_layer_norm: false
+  coefficient:
+    hidden_dims: [64, 64]
+    activation: silu
+    use_layer_norm: false
+    time_features: [t, log_t]
+
+training:
+  n_epochs: 20000
+  lr: 0.0003
+  lr_beta: 0.001
+  optimizer_name: adamw
+  weight_decay: 0.0001
+  n_collocation_points: 500
+  collocation_method: uniform
+  checkpoint_every: 1000
+  gradient_clip: 1.0
+  lr_scheduler: reduce_on_plateau
+  lr_patience: 200
+  loss_weights:
+    mle: 1.0
+    pl: 0.25
+    ode: 1.0
+    ic: 1.0
+    monotonic: 0.1
+    min_slope: 0.1
+
+evaluation:
+  hazard_time_extension: 0.10
+  thresholds:
+    beta_rmse: 0.10
+    hazard_irmse: 0.05
+    c_index: 0.75

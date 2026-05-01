@@ -1,0 +1,55 @@
+# Stage 3 v1: Exponential baseline, 3 covariates
+
+experiment_name: stage3_exponential_p3_v1
+rationale: "Stage 2 passed after correcting evaluation scale and extending training.
+  Advance to Stage 3 with the original Stage 1 SiLU/AdamW architecture, p=3,
+  n=1000, and the same 10% extended hazard evaluation window. Monotonic regularization
+  is disabled because the baseline is constant."
+
+simulation:
+  baseline: ExponentialBaseline
+  baseline_params:
+    lam: 0.5
+  beta: [1.0, -0.5, 0.3]
+  n_covariates: 3
+  censoring_rate: 0.3
+  censoring_type: random_exponential
+  n_samples: 1000
+  random_seed: 42
+
+model:
+  n_covariates: 3
+  surrogate:
+    hidden_dims: [64, 64, 64]
+    activation: silu
+    use_layer_norm: false
+  coefficient:
+    hidden_dims: [32, 32]
+    activation: silu
+    use_layer_norm: false
+    time_features: [t]
+
+training:
+  n_epochs: 12000
+  lr: 0.0003
+  lr_beta: 0.001
+  optimizer_name: adamw
+  weight_decay: 0.0001
+  n_collocation_points: 500
+  collocation_method: uniform
+  checkpoint_every: 1000
+  gradient_clip: 1.0
+  lr_scheduler: reduce_on_plateau
+  lr_patience: 200
+  loss_weights:
+    mle: 1.0
+    pl: 0.5
+    ode: 1.0
+    ic: 1.0
+
+evaluation:
+  hazard_time_extension: 0.10
+  thresholds:
+    beta_rmse: 0.10
+    hazard_irmse: 0.05
+    c_index: 0.75

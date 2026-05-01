@@ -1,0 +1,56 @@
+# Stage 2 v9: Lower partial likelihood weight on seed 158
+
+experiment_name: stage2_weibull_p1_v9
+rationale: "v8 passed C-index but beta was overestimated and the baseline hazard was
+  underestimated in the tail. Reduce partial likelihood weight from 0.5 to 0.25
+  so MLE and ODE terms can jointly recalibrate beta and baseline scale."
+
+simulation:
+  baseline: WeibullBaseline
+  baseline_params:
+    k: 1.5
+    lam: 0.5
+  beta: [1.0]
+  n_covariates: 1
+  censoring_rate: 0.3
+  censoring_type: random_exponential
+  n_samples: 500
+  random_seed: 158
+
+model:
+  n_covariates: 1
+  surrogate:
+    hidden_dims: [64, 64, 64]
+    activation: silu
+    use_layer_norm: false
+  coefficient:
+    hidden_dims: [64, 64]
+    activation: silu
+    use_layer_norm: false
+    time_features: [t, log_t]
+
+training:
+  n_epochs: 12000
+  lr: 0.0003
+  lr_beta: 0.001
+  optimizer_name: adamw
+  weight_decay: 0.0001
+  n_collocation_points: 500
+  collocation_method: uniform
+  checkpoint_every: 500
+  gradient_clip: 1.0
+  lr_scheduler: reduce_on_plateau
+  lr_patience: 200
+  loss_weights:
+    mle: 1.0
+    pl: 0.25
+    ode: 1.0
+    ic: 1.0
+    monotonic: 0.1
+
+evaluation:
+  hazard_time_extension: 0.10
+  thresholds:
+    beta_rmse: 0.10
+    hazard_irmse: 0.05
+    c_index: 0.75

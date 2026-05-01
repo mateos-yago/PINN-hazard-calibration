@@ -1,0 +1,50 @@
+# Stage 1 v23: Even more epochs (12000) to push C-index higher
+# Changes from v16:
+#   - n_epochs: 9000 → 12000 (33% more training)
+#   - Everything else identical to v16 (seed=42, excellent config)
+#   - Rationale: Longer training might refine rankings to push C-index from 0.7164 → >0.75
+
+experiment_name: stage1_exp_p1_v23
+rationale: "v16 achieved β=0.0271 ✓, haz=0.0070 ✓ in 9000 epochs.
+  Extended training to 12000 epochs to allow more refinement. Hypothesis: longer training
+  might improve ranking predictions enough to push C-index above 0.75 threshold."
+
+simulation:
+  baseline: ExponentialBaseline
+  baseline_params:
+    lam: 0.5
+  beta: [1.0]
+  n_covariates: 1
+  censoring_rate: 0.3
+  censoring_type: random_exponential
+  n_samples: 500
+  random_seed: 42
+
+model:
+  n_covariates: 1
+  surrogate:
+    hidden_dims: [64, 64, 64]
+    activation: silu
+    use_layer_norm: false
+  coefficient:
+    hidden_dims: [32, 32]
+    activation: silu
+    use_layer_norm: false
+
+training:
+  n_epochs: 12000
+  lr: 0.0003
+  lr_beta: 0.001
+  optimizer_name: adamw
+  weight_decay: 0.0001
+  n_collocation_points: 500
+  collocation_method: uniform
+  checkpoint_every: 500
+  gradient_clip: 1.0
+  lr_scheduler: reduce_on_plateau
+  lr_patience: 200
+  loss_weights:
+    mle: 1.0
+    pl: 0.5
+    ode: 1.0
+    ic: 1.0

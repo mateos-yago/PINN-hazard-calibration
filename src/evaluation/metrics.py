@@ -74,13 +74,15 @@ def baseline_hazard_accuracy(
 
 
 def concordance_index(model: HazardPINN, dataset: SurvivalDataset) -> float:
-    """Harrell's C-index using predicted cumulative hazard as risk score."""
+    """Harrell's C-index using x^T β as risk score.
+
+    Using Lambda_hat at observed time is wrong because it conflates time with risk.
+    The linear predictor x^T β is the standard risk score for Cox models.
+    """
     model.eval()
     with torch.no_grad():
-        t = dataset.time.unsqueeze(1)
         x = dataset.covariates
-        out = model(t, x)
-        risk = out["Lambda_hat"].squeeze().numpy()  # higher = higher risk
+        risk = (x @ model.beta).numpy()  # higher = higher risk
 
     times = dataset.time.numpy()
     events = dataset.event.numpy()

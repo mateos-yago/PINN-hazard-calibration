@@ -1,0 +1,50 @@
+# Stage 1 v19: Different random seed to test C-index variation
+# Changes from v16:
+#   - random_seed: 42 → 123 (different random seed)
+#   - Everything else identical to v16
+#   - Rationale: Check if C-index is limited by the specific dataset or if different seed helps
+
+experiment_name: stage1_exp_p1_v19
+rationale: "v16 achieved β=0.9729 ✓, haz=0.0070 ✓. All experiments show C-index=0.7164.
+  This exact value across all runs suggests either dataset limitation or possible evaluation issue.
+  Try different random_seed (42→123) to see if it affects C-index or if 0.7164 is fundamental limit."
+
+simulation:
+  baseline: ExponentialBaseline
+  baseline_params:
+    lam: 0.5
+  beta: [1.0]
+  n_covariates: 1
+  censoring_rate: 0.3
+  censoring_type: random_exponential
+  n_samples: 500
+  random_seed: 123
+
+model:
+  n_covariates: 1
+  surrogate:
+    hidden_dims: [64, 64, 64]
+    activation: silu
+    use_layer_norm: false
+  coefficient:
+    hidden_dims: [32, 32]
+    activation: silu
+    use_layer_norm: false
+
+training:
+  n_epochs: 9000
+  lr: 0.0003
+  lr_beta: 0.001
+  optimizer_name: adamw
+  weight_decay: 0.0001
+  n_collocation_points: 500
+  collocation_method: uniform
+  checkpoint_every: 500
+  gradient_clip: 1.0
+  lr_scheduler: reduce_on_plateau
+  lr_patience: 200
+  loss_weights:
+    mle: 1.0
+    pl: 0.5
+    ode: 1.0
+    ic: 1.0

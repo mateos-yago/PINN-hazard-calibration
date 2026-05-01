@@ -75,6 +75,7 @@ def main():
         rationale=cfg.get("rationale", ""),
         n_epochs=t_cfg["n_epochs"],
         lr=t_cfg["lr"],
+        lr_beta=t_cfg.get("lr_beta"),
         optimizer_name=t_cfg.get("optimizer_name", "adam"),
         weight_decay=t_cfg.get("weight_decay", 0.0),
         n_collocation_points=t_cfg["n_collocation_points"],
@@ -90,6 +91,9 @@ def main():
 
     trainer = Trainer(model, loss_fn, exp_config)
     loss_history = trainer.train(dataset)
+
+    # Load best weights before evaluation
+    trainer._load_best_weights(model)
 
     # Evaluate
     report = EvaluationReport()

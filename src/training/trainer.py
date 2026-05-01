@@ -24,6 +24,7 @@ class ExperimentConfig:
     rationale: str
     n_epochs: int = 1000
     lr: float = 1e-3
+    lr_beta: Optional[float] = None  # separate LR for β; defaults to lr if None
     optimizer_name: str = "adam"
     weight_decay: float = 0.0
     n_collocation_points: int = 200
@@ -50,12 +51,23 @@ class Trainer:
 
     def _build_optimizer(self) -> torch.optim.Optimizer:
         name = self.config.optimizer_name.lower()
+        lr = self.config.lr
+        lr_beta = self.config.lr_beta if self.config.lr_beta is not None else lr
+        wd = self.config.weight_decay
+
+        # Use separate parameter groups so β can have a different LR
+        network_params = list(self.model.surrogate.parameters()) + list(self.model.coefficient.parameters())
+        param_groups = [
+            {"params": network_params, "lr": lr, "weight_decay": wd},
+            {"params": [self.model.beta], "lr": lr_beta, "weight_decay": 0.0},
+        ]
+
         if name == "adam":
-            return torch.optim.Adam(self.model.parameters(), lr=self.config.lr, weight_decay=self.config.weight_decay)
+            return torch.optim.Adam(param_groups)
         elif name == "adamw":
-            return torch.optim.AdamW(self.model.parameters(), lr=self.config.lr, weight_decay=self.config.weight_decay)
+            return torch.optim.AdamW(param_groups)
         elif name == "sgd":
-            return torch.optim.SGD(self.model.parameters(), lr=self.config.lr, weight_decay=self.config.weight_decay)
+            return torch.optim.SGD(param_groups)
         else:
             raise ValueError(f"Unknown optimizer: {name}")
 
@@ -64,7 +76,7 @@ class Trainer:
             return None
         if self.config.lr_scheduler == "reduce_on_plateau":
             return torch.optim.lr_scheduler.ReduceLROnPlateau(
-                optimizer, patience=self.config.lr_patience, factor=0.5, verbose=False
+                optimizer, patience=self.config.lr_patience, factor=0.5
             )
         raise ValueError(f"Unknown scheduler: {self.config.lr_scheduler}")
 
@@ -126,6 +138,11 @@ class Trainer:
 
         self._loss_history = history
         return history
+
+    def _load_best_weights(self, model: HazardPINN):
+        """Load best state (lowest total loss) into the model."""
+        if self._best_state is not None:
+            model.load_state_dict(self._best_state)
 
     def save_experiment(self, results_dir: str, metrics: Optional[Dict] = None) -> str:
         """Save all experiment artifacts to results_dir/{experiment_name}/."""

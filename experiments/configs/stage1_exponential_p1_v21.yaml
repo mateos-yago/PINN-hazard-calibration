@@ -1,0 +1,52 @@
+# Stage 1 v21: Tune loss weights for C-index improvement (back to seed=42)
+# Changes from v16:
+#   - w2 (PL weight): 0.5 → 1.5 (increase to emphasize ranking/concordance)
+#   - w3 (ODE): 1.0 → 0.8 (slight reduction to balance)
+#   - Everything else same as v16
+#   - Rationale: v16 was excellent (β ✓, haz ✓), only C-index failed. PL loss emphasizes rankings.
+
+experiment_name: stage1_exp_p1_v21
+rationale: "v16 (seed=42) achieved best results: β=0.0271 ✓, haz=0.0070 ✓, c-index=0.7164 ✗.
+  Only needs 1.2% improvement in C-index (0.7164→0.75). The partial likelihood loss (PL)
+  emphasizes concordant rankings. Try increasing w2 from 0.5 to 1.5 to emphasize ranking,
+  reducing ODE slightly to balance."
+
+simulation:
+  baseline: ExponentialBaseline
+  baseline_params:
+    lam: 0.5
+  beta: [1.0]
+  n_covariates: 1
+  censoring_rate: 0.3
+  censoring_type: random_exponential
+  n_samples: 500
+  random_seed: 42
+
+model:
+  n_covariates: 1
+  surrogate:
+    hidden_dims: [64, 64, 64]
+    activation: silu
+    use_layer_norm: false
+  coefficient:
+    hidden_dims: [32, 32]
+    activation: silu
+    use_layer_norm: false
+
+training:
+  n_epochs: 9000
+  lr: 0.0003
+  lr_beta: 0.001
+  optimizer_name: adamw
+  weight_decay: 0.0001
+  n_collocation_points: 500
+  collocation_method: uniform
+  checkpoint_every: 500
+  gradient_clip: 1.0
+  lr_scheduler: reduce_on_plateau
+  lr_patience: 200
+  loss_weights:
+    mle: 1.0
+    pl: 1.5
+    ode: 0.8
+    ic: 1.0

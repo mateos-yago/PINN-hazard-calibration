@@ -1,0 +1,50 @@
+# Stage 1 v5: Disable PL loss and see if core MLE+ODE+IC can converge better
+# Changes from v2:
+#   - w2 (PL weight) = 0.0 (disable PL loss entirely)
+#   - Other params same as v2
+#   - Rationale: Protocol §7 suggests PL may not be necessary for convergence
+
+experiment_name: stage1_exp_p1_v5
+rationale: "v2 was best result so far (β=0.2035, haz=0.1396). However, PL loss dominates training,
+  accounting for ~5.07 of the 2.276 total loss even at reduced weight. Protocol suggests trying w2=0.0.
+  Hypothesis: disabling PL might let MLE+ODE+IC converge to better β values without PL gradient noise."
+
+simulation:
+  baseline: ExponentialBaseline
+  baseline_params:
+    lam: 0.5
+  beta: [1.0]
+  n_covariates: 1
+  censoring_rate: 0.3
+  censoring_type: random_exponential
+  n_samples: 500
+  random_seed: 42
+
+model:
+  n_covariates: 1
+  surrogate:
+    hidden_dims: [64, 64, 64]
+    activation: tanh
+    use_layer_norm: false
+  coefficient:
+    hidden_dims: [32, 32]
+    activation: tanh
+    use_layer_norm: false
+
+training:
+  n_epochs: 3000
+  lr: 0.001
+  lr_beta: 0.01
+  optimizer_name: adam
+  weight_decay: 0.0
+  n_collocation_points: 500
+  collocation_method: uniform
+  checkpoint_every: 500
+  gradient_clip: 1.0
+  lr_scheduler: reduce_on_plateau
+  lr_patience: 200
+  loss_weights:
+    mle: 1.0
+    pl: 0.0
+    ode: 1.0
+    ic: 1.0

@@ -1,0 +1,27 @@
+{
+  "beta": {
+    "rmse": 0.0018066167831420898,
+    "mae": 0.0018066167831420898,
+    "max_abs_error": 0.0018066167831420898,
+    "per_coeff_relative_error": [
+      0.0018066167650759224
+    ],
+    "estimated": [
+      0.9981933832168579
+    ],
+    "true": [
+      1.0
+    ]
+  },
+  "hazard": {
+    "integrated_mse": 0.07330185763040875,
+    "integrated_relative_mse": 0.293207418793338,
+    "pointwise_max_error": 0.43298434925497326
+  },
+  "c_index": 0.7361897031539889,
+  "thresholds_met": {
+    "beta_rmse": true,
+    "hazard_irmse": false,
+    "c_index": false
+  }
+}

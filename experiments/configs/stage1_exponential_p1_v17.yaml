@@ -1,0 +1,51 @@
+# Stage 1 v17: Increase dataset size for better C-index
+# Changes from v16:
+#   - n_samples: 500 → 800 (more data for ranking evaluation)
+#   - Everything else same as v16 (excellent: β=0.0271 ✓, haz=0.0070 ✓)
+#   - Rationale: Larger dataset may provide more diverse covariate combinations for better ranking
+
+experiment_name: stage1_exp_p1_v17
+rationale: "v16 achieved β=0.0271 ✓, haz=0.0070 ✓. Only C-index=0.7164 needs improvement (target >0.75).
+  C-index stuck at same value for many runs suggests ranking metric is underexplored.
+  Increase dataset from 500 to 800 samples to get more diverse covariate combinations,
+  which should help model learn ranking better."
+
+simulation:
+  baseline: ExponentialBaseline
+  baseline_params:
+    lam: 0.5
+  beta: [1.0]
+  n_covariates: 1
+  censoring_rate: 0.3
+  censoring_type: random_exponential
+  n_samples: 800
+  random_seed: 42
+
+model:
+  n_covariates: 1
+  surrogate:
+    hidden_dims: [64, 64, 64]
+    activation: silu
+    use_layer_norm: false
+  coefficient:
+    hidden_dims: [32, 32]
+    activation: silu
+    use_layer_norm: false
+
+training:
+  n_epochs: 9000
+  lr: 0.0003
+  lr_beta: 0.001
+  optimizer_name: adamw
+  weight_decay: 0.0001
+  n_collocation_points: 500
+  collocation_method: uniform
+  checkpoint_every: 500
+  gradient_clip: 1.0
+  lr_scheduler: reduce_on_plateau
+  lr_patience: 200
+  loss_weights:
+    mle: 1.0
+    pl: 0.5
+    ode: 1.0
+    ic: 1.0

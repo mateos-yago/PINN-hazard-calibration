@@ -1,0 +1,52 @@
+# Stage 1 v7: Use AdamW with weight decay for regularization
+# Changes from v6:
+#   - optimizer: adam → adamw (adds weight decay)
+#   - weight_decay: 0.0 → 0.0001
+#   - lr: 0.0001 → 0.0003 (slightly higher, but with regularization)
+#   - lr_beta: 0.001 (keep from v6)
+#   - Rationale: Add L2 regularization to prevent surrogate from absorbing covariate effect
+
+experiment_name: stage1_exp_p1_v7
+rationale: "v6 improved β (0.1619) but hazard got worse (0.2782). Hypothesis: surrogate is
+  absorbing covariate effect, preventing β from being accurate. Add L2 regularization via AdamW
+  to constrain model complexity and force better β estimates."
+
+simulation:
+  baseline: ExponentialBaseline
+  baseline_params:
+    lam: 0.5
+  beta: [1.0]
+  n_covariates: 1
+  censoring_rate: 0.3
+  censoring_type: random_exponential
+  n_samples: 500
+  random_seed: 42
+
+model:
+  n_covariates: 1
+  surrogate:
+    hidden_dims: [64, 64, 64]
+    activation: tanh
+    use_layer_norm: false
+  coefficient:
+    hidden_dims: [32, 32]
+    activation: tanh
+    use_layer_norm: false
+
+training:
+  n_epochs: 5000
+  lr: 0.0003
+  lr_beta: 0.001
+  optimizer_name: adamw
+  weight_decay: 0.0001
+  n_collocation_points: 500
+  collocation_method: uniform
+  checkpoint_every: 500
+  gradient_clip: 1.0
+  lr_scheduler: reduce_on_plateau
+  lr_patience: 200
+  loss_weights:
+    mle: 1.0
+    pl: 0.5
+    ode: 1.0
+    ic: 1.0

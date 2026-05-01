@@ -1,0 +1,52 @@
+# Stage 1 v2: Constant baseline hazard, 1 covariate
+# Changes from v1:
+#   - 3000 epochs (v1 was 1000, β still converging)
+#   - lr_beta=0.01 (10x higher LR for β; MLE gradient for β is constant so needs faster updates)
+#   - gradient_clip=1.0 (stability)
+#   - ReduceLROnPlateau scheduler (patience=200)
+#   - n_collocation_points=500 (better ODE coverage)
+
+experiment_name: stage1_exp_p1_v2
+rationale: "v1 showed β converging slowly (0.67 vs 1.0 after 1000 epochs). MLE gradient
+  for β is constant, so only L_PL provides curvature. Increasing β LR to 0.01, adding
+  gradient clipping and LR scheduler, more epochs and collocation points."
+
+simulation:
+  baseline: ExponentialBaseline
+  baseline_params:
+    lam: 0.5
+  beta: [1.0]
+  n_covariates: 1
+  censoring_rate: 0.3
+  censoring_type: random_exponential
+  n_samples: 500
+  random_seed: 42
+
+model:
+  n_covariates: 1
+  surrogate:
+    hidden_dims: [64, 64, 64]
+    activation: tanh
+    use_layer_norm: false
+  coefficient:
+    hidden_dims: [32, 32]
+    activation: tanh
+    use_layer_norm: false
+
+training:
+  n_epochs: 3000
+  lr: 0.001
+  lr_beta: 0.01
+  optimizer_name: adam
+  weight_decay: 0.0
+  n_collocation_points: 500
+  collocation_method: uniform
+  checkpoint_every: 500
+  gradient_clip: 1.0
+  lr_scheduler: reduce_on_plateau
+  lr_patience: 200
+  loss_weights:
+    mle: 1.0
+    pl: 0.5
+    ode: 1.0
+    ic: 1.0

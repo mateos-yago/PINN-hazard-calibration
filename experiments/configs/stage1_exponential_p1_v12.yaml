@@ -1,0 +1,50 @@
+# Stage 1 v12: Increase ODE weight for better hazard fitting
+# Changes from v11:
+#   - w3 (ODE weight) increased from 1.0 to 2.0 (emphasize hazard constraint)
+#   - n_epochs: 7000 (keep from v11)
+#   - Everything else same as v11
+
+experiment_name: stage1_exp_p1_v12
+rationale: "v11 achieved β=0.0730 ✓. Now focus on hazard (0.1741 vs need <0.05).
+  Increase ODE weight 2x to emphasize physics constraint on hazard. This should push γ(t)
+  network to fit baseline more accurately. Also may help C-index through better hazard ordering."
+
+simulation:
+  baseline: ExponentialBaseline
+  baseline_params:
+    lam: 0.5
+  beta: [1.0]
+  n_covariates: 1
+  censoring_rate: 0.3
+  censoring_type: random_exponential
+  n_samples: 500
+  random_seed: 42
+
+model:
+  n_covariates: 1
+  surrogate:
+    hidden_dims: [64, 64, 64]
+    activation: tanh
+    use_layer_norm: false
+  coefficient:
+    hidden_dims: [32, 32]
+    activation: tanh
+    use_layer_norm: false
+
+training:
+  n_epochs: 7000
+  lr: 0.0003
+  lr_beta: 0.001
+  optimizer_name: adamw
+  weight_decay: 0.0001
+  n_collocation_points: 500
+  collocation_method: uniform
+  checkpoint_every: 500
+  gradient_clip: 1.0
+  lr_scheduler: reduce_on_plateau
+  lr_patience: 200
+  loss_weights:
+    mle: 1.0
+    pl: 0.5
+    ode: 2.0
+    ic: 1.0

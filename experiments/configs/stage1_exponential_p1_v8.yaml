@@ -1,0 +1,51 @@
+# Stage 1 v8: Stronger regularization to push β RMSE under 0.10
+# Changes from v7:
+#   - weight_decay: 0.0001 → 0.0003 (stronger L2 regularization)
+#   - lr: 0.0003 → 0.0002 (slightly lower for more stable convergence with stronger decay)
+#   - n_epochs: 5000 → 6000 (more time to converge)
+#   - Rationale: v7 got β=0.1037, just need tiny push to get under 0.10
+
+experiment_name: stage1_exp_p1_v8
+rationale: "v7 achieved β RMSE=0.1037 (target <0.10), hazard=0.1928 (target <0.05).
+  Increased regularization to further constrain surrogate and force β to capture covariate effect.
+  Increased weight decay 3x and lowered LR slightly. With more stable convergence, should push β under 0.10."
+
+simulation:
+  baseline: ExponentialBaseline
+  baseline_params:
+    lam: 0.5
+  beta: [1.0]
+  n_covariates: 1
+  censoring_rate: 0.3
+  censoring_type: random_exponential
+  n_samples: 500
+  random_seed: 42
+
+model:
+  n_covariates: 1
+  surrogate:
+    hidden_dims: [64, 64, 64]
+    activation: tanh
+    use_layer_norm: false
+  coefficient:
+    hidden_dims: [32, 32]
+    activation: tanh
+    use_layer_norm: false
+
+training:
+  n_epochs: 6000
+  lr: 0.0002
+  lr_beta: 0.001
+  optimizer_name: adamw
+  weight_decay: 0.0003
+  n_collocation_points: 500
+  collocation_method: uniform
+  checkpoint_every: 500
+  gradient_clip: 1.0
+  lr_scheduler: reduce_on_plateau
+  lr_patience: 200
+  loss_weights:
+    mle: 1.0
+    pl: 0.5
+    ode: 1.0
+    ic: 1.0

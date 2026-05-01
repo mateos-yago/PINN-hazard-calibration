@@ -1,0 +1,53 @@
+# Stage 1 v9: Smaller surrogate network to force β to capture covariate effect
+# Changes from v7:
+#   - surrogate: [64, 64, 64] → [32, 32, 32] (smaller network)
+#   - weight_decay: 0.0001 (keep from v7, don't increase like v8)
+#   - lr: 0.0003 (keep from v7)
+#   - n_epochs: 5000 (keep from v7)
+#   - Rationale: Reduce surrogate capacity to force β to capture covariate effect more directly
+
+experiment_name: stage1_exp_p1_v9
+rationale: "v7 achieved β=0.1037, very close to threshold. v8's stronger regularization made it worse.
+  Try alternative: reduce surrogate network depth from [64,64,64] to [32,32,32].
+  Smaller surrogate = less capacity to absorb covariate effect = forces β to be more accurate.
+  Keep weight_decay=0.0001 from v7."
+
+simulation:
+  baseline: ExponentialBaseline
+  baseline_params:
+    lam: 0.5
+  beta: [1.0]
+  n_covariates: 1
+  censoring_rate: 0.3
+  censoring_type: random_exponential
+  n_samples: 500
+  random_seed: 42
+
+model:
+  n_covariates: 1
+  surrogate:
+    hidden_dims: [32, 32, 32]
+    activation: tanh
+    use_layer_norm: false
+  coefficient:
+    hidden_dims: [32, 32]
+    activation: tanh
+    use_layer_norm: false
+
+training:
+  n_epochs: 5000
+  lr: 0.0003
+  lr_beta: 0.001
+  optimizer_name: adamw
+  weight_decay: 0.0001
+  n_collocation_points: 500
+  collocation_method: uniform
+  checkpoint_every: 500
+  gradient_clip: 1.0
+  lr_scheduler: reduce_on_plateau
+  lr_patience: 200
+  loss_weights:
+    mle: 1.0
+    pl: 0.5
+    ode: 1.0
+    ic: 1.0

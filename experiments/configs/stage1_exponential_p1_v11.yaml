@@ -1,0 +1,50 @@
+# Stage 1 v11: Extended training from v7 config with more epochs
+# Changes from v7:
+#   - n_epochs: 5000 → 7000 (40% more epochs)
+#   - Everything else identical to v7 (best config: β=0.1037, haz=0.1928)
+#   - Rationale: v7 had smooth convergence; more epochs might push β below 0.10
+
+experiment_name: stage1_exp_p1_v11
+rationale: "v7 is best so far (β=0.1037, haz=0.1928) with smooth training. No oscillation or divergence.
+  Hypothesis: with 40% more epochs (5000→7000), model can reach even better minimum.
+  β is just 0.0037 above threshold, more training time might get it under."
+
+simulation:
+  baseline: ExponentialBaseline
+  baseline_params:
+    lam: 0.5
+  beta: [1.0]
+  n_covariates: 1
+  censoring_rate: 0.3
+  censoring_type: random_exponential
+  n_samples: 500
+  random_seed: 42
+
+model:
+  n_covariates: 1
+  surrogate:
+    hidden_dims: [64, 64, 64]
+    activation: tanh
+    use_layer_norm: false
+  coefficient:
+    hidden_dims: [32, 32]
+    activation: tanh
+    use_layer_norm: false
+
+training:
+  n_epochs: 7000
+  lr: 0.0003
+  lr_beta: 0.001
+  optimizer_name: adamw
+  weight_decay: 0.0001
+  n_collocation_points: 500
+  collocation_method: uniform
+  checkpoint_every: 500
+  gradient_clip: 1.0
+  lr_scheduler: reduce_on_plateau
+  lr_patience: 200
+  loss_weights:
+    mle: 1.0
+    pl: 0.5
+    ode: 1.0
+    ic: 1.0

@@ -1,0 +1,43 @@
+checkpoint_every: 200
+collocation_method: uniform
+experiment_name: stage1_exp_p1_v1
+gradient_clip: null
+loss_weights:
+  ic: 1.0
+  mle: 1.0
+  ode: 1.0
+  pl: 0.5
+lr: 0.001
+lr_patience: 100
+lr_scheduler: null
+model_config:
+  coefficient:
+    activation: tanh
+    hidden_dims:
+    - 32
+    - 32
+    use_layer_norm: false
+  n_covariates: 1
+  surrogate:
+    activation: tanh
+    hidden_dims:
+    - 64
+    - 64
+    - 64
+    use_layer_norm: false
+n_collocation_points: 200
+n_epochs: 1000
+optimizer_name: adam
+rationale: Baseline run. Default architecture and weights. Constant hazard, 1 covariate.
+simulation_config:
+  baseline: ExponentialBaseline
+  baseline_params:
+    lam: 0.5
+  beta:
+  - 1.0
+  censoring_rate: 0.3
+  censoring_type: random_exponential
+  n_covariates: 1
+  n_samples: 500
+  random_seed: 42
+weight_decay: 0.0

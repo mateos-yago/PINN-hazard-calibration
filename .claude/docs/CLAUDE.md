@@ -1,17 +1,24 @@
-# CLAUDE.md - Project Guidelines
+# CLAUDE.md — Project Guidelines
 
-## 1. Code Organization & Architecture
+## Architecture
 
-The project should be developed in an object-oriented approach, with logic stored in different modules and libraries in a logical way that allows for easier maintenance, extension, and manipulation of the code. Everything should have clean documentation, but should avoid documentation that is unnecessarily long—keep everything short and efficient.
+- Use an object-oriented design; split logic into modules with clear, single responsibilities.
+- Keep documentation short and purposeful — one-line docstrings where possible, no multi-paragraph blocks.
 
-## 2. Neural Networks & Performance
+## Neural Networks
 
-Applications involving neural networks should be developed using PyTorch. Apart from that, all code should attempt to be as efficient as possible (although avoiding making it too cryptic). Operations should be vectorized or tensorized when possible.
+- Use **PyTorch** for all neural network code.
+- Vectorize or tensorize operations wherever possible; avoid explicit Python loops over tensors.
+- Keep code readable — no cryptic one-liners.
 
-## 3. Results Management & Experimentation
+## Experiments & Results
 
-Results should always be exported, and the export file structure should be sound, logical, and well thought through. Every experiment should be documented and logged, informing about the hyperparameters that it used. The trained neural network weights for each experiment should be saved so they can be accessed easily at any point. Consider saving some comments about the rationale behind each experiment.
+- Every experiment must be logged with its hyperparameters.
+- Save trained model weights per experiment so any run can be reloaded at any time.
+- Export all results; organize output directories in a logical, consistent structure.
+- Include a brief comment in the experiment config or log explaining the rationale behind that run.
 
-## 4. Version Control
+## Version Control
 
-Every change to the code should be pushed to the GitHub remote repo with clean explanatory commits. Try to do these commits often, so it is easy to come back to previous versions of the code if needed.
+- Commit and push to the GitHub remote together — don't leave commits local-only.
+- Commit often with clean, descriptive messages so any version can be recovered easily.

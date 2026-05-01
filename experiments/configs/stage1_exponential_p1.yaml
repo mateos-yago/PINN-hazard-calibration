@@ -1,0 +1,43 @@
+# Stage 1: Constant baseline hazard, 1 covariate
+# Simplest possible case. Goal: verify PINN recovers β and flat hazard.
+
+experiment_name: stage1_exp_p1_v1
+rationale: "Baseline run. Default architecture and weights. Constant hazard, 1 covariate."
+
+simulation:
+  baseline: ExponentialBaseline
+  baseline_params:
+    lam: 0.5
+  beta: [1.0]
+  n_covariates: 1
+  censoring_rate: 0.3
+  censoring_type: random_exponential
+  n_samples: 500
+  random_seed: 42
+
+model:
+  n_covariates: 1
+  surrogate:
+    hidden_dims: [64, 64, 64]
+    activation: tanh
+    use_layer_norm: false
+  coefficient:
+    hidden_dims: [32, 32]
+    activation: tanh
+    use_layer_norm: false
+
+training:
+  n_epochs: 1000
+  lr: 0.001
+  optimizer_name: adam
+  weight_decay: 0.0
+  n_collocation_points: 200
+  collocation_method: uniform
+  checkpoint_every: 200
+  gradient_clip: null
+  lr_scheduler: null
+  loss_weights:
+    mle: 1.0
+    pl: 0.5
+    ode: 1.0
+    ic: 1.0

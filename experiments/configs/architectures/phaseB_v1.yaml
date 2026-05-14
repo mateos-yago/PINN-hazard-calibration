@@ -1,0 +1,55 @@
+# Phase B v1: phaseA_v6 architecture, scaled to p=4
+#
+# Identical to phaseA_v6.yaml — only the simulation.beta and model.n_covariates
+# change via the sweep runner. Phase B tests whether the v6 recipe transfers
+# from p=1 to p=4.
+
+rationale: "phaseB_v1 — Phase A's best architecture (v6: quadrature + monotonic
+  + smoothness=10 + Cox PL β init + boundary clamp) scaled to p=4. Tests
+  whether the hazard tail-bias observed at p=1 changes with covariate count,
+  and whether β and C-index still pass thresholds in the 4-covariate setting."
+
+model:
+  parameterization: quadrature
+  quadrature_grid: 200
+  surrogate:
+    hidden_dims: [64, 64, 64]
+    activation: silu
+    use_layer_norm: false
+  coefficient:
+    hidden_dims: [64, 64]
+    activation: silu
+    use_layer_norm: false
+    time_features: [t, log_t]
+    input_clamp_min: 0.01
+    input_clamp_max: 1.00
+
+training:
+  beta_initialization: cox_pl
+  n_epochs: 12000
+  lr: 0.0003
+  lr_coefficient: 0.001
+  lr_beta: 0.0001
+  optimizer_name: adamw
+  weight_decay: 0.0001
+  n_collocation_points: 500
+  collocation_method: uniform
+  checkpoint_every: 2000
+  gradient_clip: 1.0
+  lr_scheduler: reduce_on_plateau
+  lr_patience: 200
+  loss_weights:
+    mle: 1.0
+    pl: 0.25
+    ode: 0.0
+    ic: 0.0
+    monotonic: 0.1
+    smoothness: 10.0
+    baseline_ref: 0.0
+
+evaluation:
+  hazard_time_extension: 0.10
+  thresholds:
+    beta_rmse: 0.10
+    hazard_irmse: 0.05
+    c_index: 0.75

@@ -90,7 +90,7 @@ class CoefficientNetwork(nn.Module):
         self.log_time_offset = float(log_time_offset)
         self.input_clamp_min = float(input_clamp_min)
         self.input_clamp_max = float(input_clamp_max)
-        valid = {"t", "log_t", "log_t_shifted"}
+        valid = {"t", "sqrt_t", "log_t", "log_t_shifted"}
         unknown = set(self.time_features) - valid
         if unknown:
             raise ValueError(f"Unknown coefficient time features: {sorted(unknown)}")
@@ -104,6 +104,8 @@ class CoefficientNetwork(nn.Module):
         for feature in self.time_features:
             if feature == "t":
                 features.append(t)
+            elif feature == "sqrt_t":
+                features.append(torch.sqrt(torch.clamp(t, min=0.0)))
             elif feature == "log_t":
                 features.append(torch.log(torch.clamp(t, min=1e-6)))
             elif feature == "log_t_shifted":

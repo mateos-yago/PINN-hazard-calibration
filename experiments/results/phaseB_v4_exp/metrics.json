@@ -1,0 +1,49 @@
+{
+  "beta": {
+    "rmse": 0.06007910000004061,
+    "mae": 0.04332071464405344,
+    "max_abs_error": 0.1123610753736658,
+    "per_coeff_relative_error": [
+      0.018641843016226296,
+      0.22472214625288864,
+      0.1268219223805453,
+      0.021166809029261647
+    ],
+    "estimated": [
+      1.0186418432026447,
+      -0.6123610753736658,
+      0.2619534220176172,
+      -0.20423336201752043
+    ],
+    "true": [
+      1.0,
+      -0.5,
+      0.3,
+      -0.2
+    ]
+  },
+  "hazard": {
+    "integrated_mse": 0.0016221465998195721,
+    "integrated_relative_mse": 0.006488586139734839,
+    "pointwise_max_error": 0.11694844614612743,
+    "covariate_scaling_adjustment": 1.0211134094683365,
+    "time_window": {
+      "normalized_start": 0.0001,
+      "normalized_end": 1.1,
+      "original_start": 0.001683246012521718,
+      "original_end": 15.260264843058096,
+      "extension_fraction": 0.1
+    }
+  },
+  "c_index": 0.7630218650661192,
+  "thresholds": {
+    "beta_rmse": 0.1,
+    "hazard_irmse": 0.05,
+    "c_index": 0.75
+  },
+  "thresholds_met": {
+    "beta_rmse": true,
+    "hazard_irmse": true,
+    "c_index": true
+  }
+}

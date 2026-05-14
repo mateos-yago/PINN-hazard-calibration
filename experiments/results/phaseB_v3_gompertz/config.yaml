@@ -1,0 +1,65 @@
+checkpoint_every: 2000
+collocation_method: uniform
+experiment_name: phaseB_v3_gompertz
+gradient_clip: 1.0
+loss_weights:
+  baseline_ref: 0.0
+  ic: 0.0
+  mle: 1.0
+  monotonic: 0.1
+  ode: 0.0
+  pl: 0.25
+  smoothness: 10.0
+lr: 0.0003
+lr_beta: 0.0001
+lr_coefficient: 0.001
+lr_patience: 200
+lr_scheduler: reduce_on_plateau
+model_config:
+  coefficient:
+    activation: silu
+    hidden_dims:
+    - 64
+    - 64
+    input_clamp_max: 1.0
+    input_clamp_min: 0.01
+    time_features:
+    - t
+    - sqrt_t
+    - log_t
+    use_layer_norm: false
+  n_covariates: 4
+  parameterization: quadrature
+  quadrature_grid: 200
+  surrogate:
+    activation: silu
+    hidden_dims:
+    - 64
+    - 64
+    - 64
+    use_layer_norm: false
+n_collocation_points: 500
+n_epochs: 12000
+optimizer_name: adamw
+rationale: "Sweep cell \u2014 architecture phaseB_v3, baseline gompertz, p=4. phaseB_v3\
+  \ \u2014 add sqrt_t to the coefficient time features while returning monotonic to\
+  \ the v1 value 0.1. v1/v2 both pass beta and C-index, but Weibull is flattened in\
+  \ the tail and Gompertz forms a right-boundary spike. The extra concave time feature\
+  \ gives gamma(t) another smooth basis direction without changing the loss family\
+  \ or beta recipe."
+simulation_config:
+  baseline: GompertzBaseline
+  baseline_params:
+    a: 0.3
+    b: 0.2
+  beta:
+  - 1.0
+  - -0.5
+  - 0.3
+  - -0.2
+  censoring_rate: 0.3
+  censoring_type: random_exponential
+  n_covariates: 4
+  n_samples: 1000
+  random_seed: 42
+weight_decay: 0.0001

@@ -822,4 +822,161 @@ density-adaptive knot placement.
 to p=4. The hazard tail-bias is documented as the open problem for future
 work and is independent of covariate count.
 
+## Phase B — p=4, multi-baseline
 
+### phaseB_v1  [2026-05-13]
+
+**Diff vs phaseA_v6:** none in the architecture YAML — `experiments/sweep.py`
+injects p=4, β=[1.0, -0.5, 0.3, -0.2] from `BETA_BY_P[4]`. Same hyperparameters.
+
+**Sweep results (p=4):**
+
+| Baseline | β RMSE | Hazard IRMSE | C-index | All pass |
+|---|---|---|---|---|
+| exp | 0.061 ✓ | 0.0084 ✓ | 0.763 ✓ | **✓** |
+| weibull | 0.060 ✓ | 0.111 ✗ | 0.764 ✓ | ✗ |
+| gompertz | 0.058 ✓ | 2.099 ✗ | 0.764 ✓ | ✗ |
+| piecewise | 0.066 ✓ | 0.0125 ✓ | 0.765 ✓ | **✓** |
+
+**Observations:** Phase B is meaningfully *better* than Phase A on this panel —
+**two baselines pass cleanly** (exp, piecewise) instead of just one. β
+recovery is uniform around 0.06 RMSE across baselines; C-index sits at the
+oracle ceiling (~0.764) on all four. The richer covariate space appears to
+make the (γ, β) coupling more identifiable.
+
+Failure modes shift with p:
+- **Weibull (p=4): undershoots** — estimated α saturates at ~1.1 while true
+  reaches 2.2. Different from p=1 where Weibull overshot. The smoothness
+  penalty now restricts γ rise too much when β is multi-dimensional.
+- **Gompertz (p=4): tail spike** — estimated tracks until t≈11 then jumps
+  from ~5 to ~60 at t≈13. Spike is within the observed range, near the
+  right boundary of the grid before the clamp engages.
+- Piecewise passes cleanly at p=4 (IRMSE 0.0125) where it failed at p=1
+  (IRMSE 0.557). Multi-covariate gradient signal seems to help the step fit.
+
+**Next planned change (phaseB_v2):** Try the smoothness=10 / monotonic=1.0
+combination — stronger monotonicity may fight the Gompertz boundary spike
+(by penalizing the post-spike descent) without softening the smoothness
+that's working on Weibull/Piecewise.
+
+### phaseB_v2  [2026-05-13]
+
+**Diff vs phaseB_v1:** `monotonic` weight 0.1 → 1.0.
+
+**Rationale:** `phaseB_v1` failed on a Gompertz right-boundary spike. Stronger
+monotonicity was tested to penalize the post-spike descent while leaving the
+smoothness weight that worked for exp/piecewise unchanged.
+
+**Sweep results (p=4):**
+
+| Baseline | β RMSE | Hazard IRMSE | C-index | All pass |
+|---|---|---|---|---|
+| exp | 0.0597 ✓ | 0.0102 ✓ | 0.7630 ✓ | ✓ |
+| weibull | 0.0601 ✓ | 0.1169 ✗ | 0.7643 ✓ | ✗ |
+| gompertz | 0.0581 ✓ | 2.0005 ✗ | 0.7643 ✓ | ✗ |
+| piecewise | 0.0664 ✓ | 0.0159 ✓ | 0.7645 ✓ | ✓ |
+
+**Failure mode:** The stronger monotonic term did not materially fix the
+Gompertz boundary spike (IRMSE 2.10 → 2.00) and slightly worsened the Weibull
+tail underfit (IRMSE 0.111 → 0.117). Exp and piecewise still pass, but with
+slightly worse hazard error than v1.
+
+**Next planned change (phaseB_v3):** Reject the monotonic escalation and branch
+back from `phaseB_v1`; add `sqrt_t` to `coefficient.time_features` as the next
+diagnostic-table lever for tail underfit / log-hazard curvature representation.
+
+### phaseB_v3  [2026-05-13]
+
+**Diff vs phaseB_v1:** Added `sqrt_t` to `coefficient.time_features`
+(`[t, log_t]` → `[t, sqrt_t, log_t]`). `monotonic` returned to 0.1 after the
+v2 escalation was rejected.
+
+**Rationale:** `phaseB_v1` and `phaseB_v2` both showed Weibull tail underfit
+and a Gompertz right-boundary spike while β and C-index were already stable.
+The diagnostic table's next shape-agnostic feature lever for tail curvature is
+`sqrt_t`.
+
+**Sweep results (p=4):**
+
+| Baseline | β RMSE | Hazard IRMSE | C-index | All pass |
+|---|---|---|---|---|
+| exp | 0.0592 ✓ | 0.0123 ✓ | 0.7630 ✓ | ✓ |
+| weibull | 0.0599 ✓ | 0.1065 ✗ | 0.7643 ✓ | ✗ |
+| gompertz | 0.0582 ✓ | 1.7266 ✗ | 0.7644 ✓ | ✗ |
+| piecewise | 0.0658 ✓ | 0.0129 ✓ | 0.7646 ✓ | ✓ |
+
+**Failure mode:** `sqrt_t` is a modest improvement over v1/v2 on both failing
+baselines (Weibull 0.1106 → 0.1065; Gompertz 2.0986 → 1.7266), and exp/piecewise
+remain below threshold. However, Weibull still plateaus too low after t≈3, and
+Gompertz still spikes at t≈12 rather than following the true exponential tail.
+
+**Next planned change (phaseB_v4):** Widen the γ-network from `[64, 64]` to
+`[96, 96, 96]` while retaining `[t, sqrt_t, log_t]`. This is the diagnostic
+table's next lever after adding `sqrt_t`.
+
+### phaseB_v4  [2026-05-13]
+
+**Diff vs phaseB_v3:** Widened `coefficient.hidden_dims` from `[64, 64]` to
+`[96, 96, 96]`.
+
+**Rationale:** `phaseB_v3` improved both failing hazard metrics but did not
+pass them. The diagnostic table's next lever after adding `sqrt_t` is widening
+the γ-network to improve tail representation.
+
+**Sweep results (p=4):**
+
+| Baseline | β RMSE | Hazard IRMSE | C-index | All pass |
+|---|---|---|---|---|
+| exp | 0.0601 ✓ | 0.0065 ✓ | 0.7630 ✓ | ✓ |
+| weibull | 0.0597 ✓ | 0.1110 ✗ | 0.7644 ✓ | ✗ |
+| gompertz | 0.0581 ✓ | 2.8019 ✗ | 0.7643 ✓ | ✗ |
+| piecewise | 0.0659 ✓ | 0.0124 ✓ | 0.7646 ✓ | ✓ |
+
+**Failure mode:** Widening regressed both failing baselines relative to v3.
+The extra capacity improves exp and leaves piecewise passing, but it amplifies
+the Gompertz boundary-spike pathology and does not relieve Weibull tail
+flattening.
+
+**Next planned change (phaseB_v5):** Reject the widening lever and branch back
+from `phaseB_v3`; reduce `smoothness` 10.0 → 1.0. Both remaining failures look
+like over-regularized interior curvature followed by boundary compensation:
+Weibull plateaus too low, while Gompertz is too low until a late spike.
+
+### phaseB_v5  [2026-05-13]
+
+**Diff vs phaseB_v3:** Reduced `smoothness` weight 10.0 → 1.0.
+
+**Rationale:** `phaseB_v3` was the best branch after `sqrt_t`, but the Weibull
+and Gompertz plots still looked over-regularized in the interior: Weibull
+flattened too early, and Gompertz stayed low until a right-boundary spike.
+Lower smoothness tested whether the tail could rise more gradually.
+
+**Sweep results (p=4):**
+
+| Baseline | β RMSE | Hazard IRMSE | C-index | All pass |
+|---|---|---|---|---|
+| exp | 0.0593 ✓ | 0.0116 ✓ | 0.7630 ✓ | ✓ |
+| weibull | 0.0604 ✓ | 0.1145 ✗ | 0.7643 ✓ | ✗ |
+| gompertz | 0.0588 ✓ | 1.7890 ✗ | 0.7644 ✓ | ✗ |
+| piecewise | 0.0657 ✓ | 0.0117 ✓ | 0.7646 ✓ | ✓ |
+
+**Failure mode:** Lower smoothness regressed Weibull and Gompertz relative to
+v3 while leaving exp/piecewise passing. The Gompertz boundary spike remains,
+and Weibull still underfits the tail.
+
+**Current Phase B status:** Best architecture so far is `phaseB_v3`: all four
+baselines pass β RMSE and C-index; exp and piecewise pass hazard IRMSE; Weibull
+and Gompertz still fail hazard IRMSE. The tested shape levers are exhausted
+within the current pure-PINN recipe:
+- `phaseB_v2`: stronger monotonicity — rejected.
+- `phaseB_v3`: `sqrt_t` feature — retained as best branch but not accepted.
+- `phaseB_v4`: wider γ-network — rejected.
+- `phaseB_v5`: lower smoothness — rejected.
+
+**Next planned change:** Pause before a training-loop change. The remaining
+failure is the same structural tail-bias documented at the end of Phase A:
+MLE signal is sparse in the right tail, and global monotonic/smoothness terms
+cannot simultaneously control Weibull flattening and Gompertz boundary spikes.
+The next plausible lever is density-aware/event-weighted MLE or collocation,
+but that is a major training-loop change and should be run with the conditional
+lever ablation rule.

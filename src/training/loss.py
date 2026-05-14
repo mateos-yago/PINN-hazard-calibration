@@ -18,6 +18,41 @@ class MLELoss(nn.Module):
     L_MLE = -1/n * Σ_i [ Δ_i · (γ̂(Y_i) + x_i^T β) - Λ̂(Y_i, x_i) ]
     """
 
+    def __init__(
+        self,
+        weighting: str = "uniform",
+        weight_power: float = 0.5,
+        max_weight: float = 10.0,
+        weight_target: str = "full",
+    ):
+        super().__init__()
+        self.weighting = weighting
+        self.weight_power = float(weight_power)
+        self.max_weight = float(max_weight)
+        self.weight_target = weight_target
+
+    def _sample_weights(
+        self,
+        risk_mask: Optional[torch.Tensor],
+        n: int,
+        device: torch.device,
+        dtype: torch.dtype,
+    ) -> Optional[torch.Tensor]:
+        if self.weighting == "uniform":
+            return None
+        if self.weighting != "inverse_at_risk":
+            raise ValueError(f"Unknown MLE weighting: {self.weighting}")
+        if risk_mask is None:
+            raise RuntimeError("inverse_at_risk MLE weighting requires risk_mask.")
+
+        at_risk = risk_mask.sum(dim=1).clamp_min(1.0).to(device=device, dtype=dtype)
+        weights = (float(n) / at_risk).pow(self.weight_power)
+        weights = weights / weights.mean().clamp_min(1e-12)
+        if self.max_weight > 0:
+            weights = weights.clamp(max=self.max_weight)
+            weights = weights / weights.mean().clamp_min(1e-12)
+        return weights.detach()
+
     def forward(
         self,
         Lambda_hat: torch.Tensor,
@@ -26,10 +61,27 @@ class MLELoss(nn.Module):
         time: torch.Tensor,
         event: torch.Tensor,
         covariates: torch.Tensor,
+        risk_mask: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         xb = covariates @ beta  # [n]
         log_hazard = gamma_hat.squeeze() + xb  # [n]
-        nll = -(event * log_hazard - Lambda_hat.squeeze())
+        event_nll = -(event * log_hazard)
+        cumulative_nll = Lambda_hat.squeeze()
+        weights = self._sample_weights(
+            risk_mask,
+            n=event_nll.shape[0],
+            device=event_nll.device,
+            dtype=event_nll.dtype,
+        )
+        if weights is not None:
+            if self.weight_target == "full":
+                event_nll = event_nll * weights
+                cumulative_nll = cumulative_nll * weights
+            elif self.weight_target == "event":
+                event_nll = event_nll * weights
+            else:
+                raise ValueError(f"Unknown MLE weight target: {self.weight_target}")
+        nll = event_nll + cumulative_nll
         return nll.mean()
 
 
@@ -213,6 +265,10 @@ class CompositeLoss(nn.Module):
             "min_slope_margin": 0.25,
             "smoothness": 0.0,
             "baseline_ref": 0.0,
+            "mle_weighting": "uniform",
+            "mle_weight_power": 0.5,
+            "mle_max_weight": 10.0,
+            "mle_weight_target": "full",
         }
         w = defaults if weights is None else {**defaults, **weights}
         self.w_mle = w["mle"]
@@ -225,7 +281,12 @@ class CompositeLoss(nn.Module):
         self.w_smoothness = w["smoothness"]
         self.w_baseline_ref = w["baseline_ref"]
 
-        self.mle_loss = MLELoss()
+        self.mle_loss = MLELoss(
+            weighting=w["mle_weighting"],
+            weight_power=w["mle_weight_power"],
+            max_weight=w["mle_max_weight"],
+            weight_target=w["mle_weight_target"],
+        )
         self.pl_loss = PartialLikelihoodLoss()
         self.ode_loss = ODEResidualLoss()
         self.ic_loss = InitialConditionLoss()
@@ -260,7 +321,7 @@ class CompositeLoss(nn.Module):
         total = torch.tensor(0.0, device=t.device)
 
         if self.w_mle > 0:
-            l = self.mle_loss(Lambda_hat, gamma_hat, beta, t, event, x)
+            l = self.mle_loss(Lambda_hat, gamma_hat, beta, t, event, x, risk_mask)
             components["mle"] = l
             total = total + self.w_mle * l
 

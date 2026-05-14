@@ -980,3 +980,115 @@ cannot simultaneously control Weibull flattening and Gompertz boundary spikes.
 The next plausible lever is density-aware/event-weighted MLE or collocation,
 but that is a major training-loop change and should be run with the conditional
 lever ablation rule.
+
+### phaseB_v6  [2026-05-13]
+
+**Diff vs phaseB_v3:** No effective architecture/training change. Added the
+config-driven MLE weighting hook in `src/training/loss.py`, but set
+`mle_weighting: uniform` explicitly.
+
+**Rationale:** Matched control for the conditional density-aware MLE ablation.
+This verifies that the new training-loop hook preserves the previous v3
+behavior before turning the lever on.
+
+**Sweep results (p=4):**
+
+| Baseline | β RMSE | Hazard IRMSE | C-index | All pass |
+|---|---|---|---|---|
+| exp | 0.0592 ✓ | 0.0123 ✓ | 0.7630 ✓ | ✓ |
+| weibull | 0.0599 ✓ | 0.1065 ✗ | 0.7643 ✓ | ✗ |
+| gompertz | 0.0582 ✓ | 1.7266 ✗ | 0.7644 ✓ | ✗ |
+| piecewise | 0.0658 ✓ | 0.0129 ✓ | 0.7646 ✓ | ✓ |
+
+**Failure mode:** Same as v3, as expected. This is the matched control for
+v7-v9.
+
+**Next planned change (phaseB_v7):** Turn on inverse-at-risk MLE weighting:
+`mle_weighting: inverse_at_risk`, `mle_weight_power: 0.5`,
+`mle_max_weight: 10.0`, applied to the full per-observation MLE term.
+
+### phaseB_v7  [2026-05-13]
+
+**Diff vs phaseB_v6:** Enabled full per-observation inverse-at-risk MLE
+weighting with square-root power and 10× cap.
+
+**Rationale:** Increase gradient signal in sparse right-tail regions, where
+Weibull flattened and Gompertz formed a boundary spike under the uniform MLE.
+
+**Sweep results (p=4):**
+
+| Baseline | β RMSE | Hazard IRMSE | C-index | All pass |
+|---|---|---|---|---|
+| exp | 0.1426 ✗ | 58.0743 ✗ | 0.7629 ✓ | ✗ |
+| weibull | 0.1477 ✗ | 27.0269 ✗ | 0.7641 ✓ | ✗ |
+| gompertz | 0.1507 ✗ | 26.9422 ✗ | 0.7635 ✓ | ✗ |
+| piecewise | 0.1494 ✗ | 0.0712 ✗ | 0.7643 ✓ | ✗ |
+
+**Failure mode:** The lever is far too aggressive. It breaks β recovery on all
+baselines and destabilizes hazard scale. Applying the weight to the cumulative
+hazard term as well as the event log-hazard term appears to overcorrect the
+tail and changes the likelihood geometry too much.
+
+**Next planned change (phaseB_v8):** Try the same full-MLE weighting with a
+milder schedule: `mle_weight_power: 0.25`, `mle_max_weight: 3.0`.
+
+### phaseB_v8  [2026-05-13]
+
+**Diff vs phaseB_v7:** Reduced inverse-at-risk weighting strength:
+`mle_weight_power` 0.5 → 0.25 and `mle_max_weight` 10.0 → 3.0.
+
+**Rationale:** v7 overcorrected. A milder version tests whether the same
+density-aware idea can improve Weibull/Gompertz without breaking β recovery or
+previously passing baselines.
+
+**Sweep results (p=4):**
+
+| Baseline | β RMSE | Hazard IRMSE | C-index | All pass |
+|---|---|---|---|---|
+| exp | 0.0908 ✓ | 0.0195 ✓ | 0.7629 ✓ | ✓ |
+| weibull | 0.0933 ✓ | 0.1011 ✗ | 0.7641 ✓ | ✗ |
+| gompertz | 0.0931 ✓ | 7.5374 ✗ | 0.7642 ✓ | ✗ |
+| piecewise | 0.1017 ✗ | 0.0164 ✓ | 0.7645 ✓ | ✗ |
+
+**Failure mode:** The milder full-MLE weighting slightly improves Weibull
+hazard vs control (0.1065 → 0.1011), but it severely worsens Gompertz
+(1.7266 → 7.5374) and pushes piecewise β just over threshold. Under the
+conditional lever rule, this variant is rejected.
+
+**Next planned change (phaseB_v9):** Apply the same mild inverse-at-risk
+weights only to the event log-hazard term, not the cumulative-hazard term.
+
+### phaseB_v9  [2026-05-13]
+
+**Diff vs phaseB_v8:** Added `mle_weight_target: event`, so inverse-at-risk
+weights multiply only `-Δ_i log h(Y_i|x_i)` and leave `Λ(Y_i,x_i)` unweighted.
+
+**Rationale:** v7/v8 destabilized the full likelihood. Event-only weighting
+tests a narrower form of the same training-loop idea: boost sparse tail event
+signal without multiplying late cumulative-hazard penalties.
+
+**Sweep results (p=4):**
+
+| Baseline | β RMSE | Hazard IRMSE | C-index | All pass |
+|---|---|---|---|---|
+| exp | 0.0566 ✓ | 0.4308 ✗ | 0.7630 ✓ | ✗ |
+| weibull | 0.0586 ✓ | 0.2761 ✗ | 0.7641 ✓ | ✗ |
+| gompertz | 0.0575 ✓ | 26.0833 ✗ | 0.7643 ✓ | ✗ |
+| piecewise | 0.0590 ✓ | 0.7787 ✗ | 0.7646 ✓ | ✗ |
+
+**Failure mode:** Event-only weighting preserves β recovery, but hazard IRMSE
+regresses on every baseline, including exp and piecewise that passed under the
+control. The Gompertz boundary spike becomes much worse.
+
+**Ablation decision:** Reject density-aware inverse-at-risk MLE weighting for
+this architecture family. The control `phaseB_v6` remains the matched baseline,
+and `phaseB_v3`/`phaseB_v6` remain the best Phase B results. The training-loop
+hook remains in code for reproducibility of v7-v9 artifacts, but subsequent
+architectures should keep `mle_weighting: uniform` unless a materially different
+weighting mechanism is proposed and ablated.
+
+**Next planned change:** Do not continue with inverse-at-risk MLE weighting.
+The remaining viable directions are outside this rejected lever family:
+data-derived Nelson-Aalen/self-supervised baseline priors, a spline γ basis with
+density-adaptive knots, or a non-uniform smoothness penalty. Each would need its
+own matched ablation.

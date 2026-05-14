@@ -1,0 +1,68 @@
+checkpoint_every: 2000
+collocation_method: uniform
+experiment_name: phaseB_v7_weibull
+gradient_clip: 1.0
+loss_weights:
+  baseline_ref: 0.0
+  ic: 0.0
+  mle: 1.0
+  mle_max_weight: 10.0
+  mle_weight_power: 0.5
+  mle_weighting: inverse_at_risk
+  monotonic: 0.1
+  ode: 0.0
+  pl: 0.25
+  smoothness: 10.0
+lr: 0.0003
+lr_beta: 0.0001
+lr_coefficient: 0.001
+lr_patience: 200
+lr_scheduler: reduce_on_plateau
+model_config:
+  coefficient:
+    activation: silu
+    hidden_dims:
+    - 64
+    - 64
+    input_clamp_max: 1.0
+    input_clamp_min: 0.01
+    time_features:
+    - t
+    - sqrt_t
+    - log_t
+    use_layer_norm: false
+  n_covariates: 4
+  parameterization: quadrature
+  quadrature_grid: 200
+  surrogate:
+    activation: silu
+    hidden_dims:
+    - 64
+    - 64
+    - 64
+    use_layer_norm: false
+n_collocation_points: 500
+n_epochs: 12000
+optimizer_name: adamw
+rationale: "Sweep cell \u2014 architecture phaseB_v7, baseline weibull, p=4. phaseB_v7\
+  \ \u2014 conditional training-loop lever: density-aware MLE weighting. Per-observation\
+  \ MLE terms are weighted by inverse at-risk count with square-root power, normalized\
+  \ to mean one, and capped at 10x before renormalization. The goal is to increase\
+  \ right-tail gradient signal where sparse late times caused Weibull flattening and\
+  \ Gompertz boundary spikes."
+simulation_config:
+  baseline: WeibullBaseline
+  baseline_params:
+    k: 1.5
+    lam: 0.5
+  beta:
+  - 1.0
+  - -0.5
+  - 0.3
+  - -0.2
+  censoring_rate: 0.3
+  censoring_type: random_exponential
+  n_covariates: 4
+  n_samples: 1000
+  random_seed: 42
+weight_decay: 0.0001

@@ -1,0 +1,63 @@
+# Phase A v4: quadrature + γ-monotonicity prior (Stage-4-v14 prior, minus oracle)
+#
+# Diff vs phaseA_v2: re-enable `monotonic` weight 0.1 (the Stage 4 v14 prior).
+# The v2 catastrophe was a near-delta spike in γ at the smallest t_norm (γ=101
+# surrounded by γ≈2), which produces a sharp decreasing slope on its right side.
+# The existing BaselineMonotonicityLoss penalises (relu(-dγ/dt))² which directly
+# forbids that descent.
+#
+# Note on baseline-agnosticism: γ-monotonicity assumes a non-decreasing α(t).
+# All 4 baselines in the Phase A panel (exp / weibull k=1.5 / gompertz a>0 /
+# piecewise [0.2,0.6]) satisfy this. For settings with decreasing or bathtub
+# hazards (e.g. infant-mortality, post-treatment cancer), this prior would need
+# to be replaced with the cumulative-hazard monotonicity or smoothness variant.
+
+rationale: "phaseA_v4 — quadrature parameterization with γ-monotonicity prior.
+  Stage 4 v14 had two regularizers (baseline_ref oracle + γ-monotonicity).
+  Removing baseline_ref and the Λ-surrogate (v2) recovered β perfectly but left
+  γ free to spike. Re-adding the existing γ-monotonicity prior should suppress
+  the descending slope after the spike, restoring a sensible hazard shape.
+  This is the closest direct mirror of v14's recipe under the new constraints."
+
+model:
+  parameterization: quadrature
+  quadrature_grid: 200
+  surrogate:
+    hidden_dims: [64, 64, 64]
+    activation: silu
+    use_layer_norm: false
+  coefficient:
+    hidden_dims: [64, 64]
+    activation: silu
+    use_layer_norm: false
+    time_features: [t, log_t]
+
+training:
+  beta_initialization: cox_pl
+  n_epochs: 12000
+  lr: 0.0003
+  lr_coefficient: 0.001
+  lr_beta: 0.0001
+  optimizer_name: adamw
+  weight_decay: 0.0001
+  n_collocation_points: 500
+  collocation_method: uniform
+  checkpoint_every: 2000
+  gradient_clip: 1.0
+  lr_scheduler: reduce_on_plateau
+  lr_patience: 200
+  loss_weights:
+    mle: 1.0
+    pl: 0.25
+    ode: 0.0
+    ic: 0.0
+    monotonic: 0.1
+    smoothness: 0.0
+    baseline_ref: 0.0
+
+evaluation:
+  hazard_time_extension: 0.10
+  thresholds:
+    beta_rmse: 0.10
+    hazard_irmse: 0.05
+    c_index: 0.75

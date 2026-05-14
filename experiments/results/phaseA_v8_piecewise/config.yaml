@@ -1,0 +1,63 @@
+checkpoint_every: 500
+collocation_method: uniform
+experiment_name: phaseA_v8_piecewise
+gradient_clip: 1.0
+loss_weights:
+  baseline_ref: 0.0
+  ic: 0.0
+  mle: 1.0
+  monotonic: 0.1
+  ode: 0.0
+  pl: 0.25
+  smoothness: 10.0
+lr: 0.0003
+lr_beta: 0.0001
+lr_coefficient: 0.001
+lr_patience: 200
+lr_scheduler: reduce_on_plateau
+model_config:
+  coefficient:
+    activation: silu
+    hidden_dims:
+    - 64
+    - 64
+    input_clamp_max: 1.0
+    input_clamp_min: 0.01
+    time_features:
+    - t
+    - log_t
+    use_layer_norm: false
+  n_covariates: 1
+  parameterization: quadrature
+  quadrature_grid: 200
+  surrogate:
+    activation: silu
+    hidden_dims:
+    - 64
+    - 64
+    - 64
+    use_layer_norm: false
+n_collocation_points: 500
+n_epochs: 3000
+optimizer_name: adamw
+rationale: "Sweep cell \u2014 architecture phaseA_v8, baseline piecewise, p=1. phaseA_v8\
+  \ \u2014 n_epochs 12000 \u2192 3000. v6/v7 both had the same tail failure mode (overshoot\
+  \ for Weibull/Piecewise, undershoot for Gompertz) despite different \u03B3-net sizes\
+  \ \u2014 suggests it's overfitting in late-event regions, not insufficient capacity.\
+  \ Shorter training is the simplest test of that hypothesis."
+simulation_config:
+  baseline: PiecewiseConstantBaseline
+  baseline_params:
+    cutpoints:
+    - 2.0
+    rates:
+    - 0.2
+    - 0.6
+  beta:
+  - 1.5
+  censoring_rate: 0.3
+  censoring_type: random_exponential
+  n_covariates: 1
+  n_samples: 1000
+  random_seed: 42
+weight_decay: 0.0001

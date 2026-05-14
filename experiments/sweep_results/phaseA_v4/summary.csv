@@ -1,0 +1,5 @@
+baseline,beta_rmse,hazard_irmse,c_index,pass_beta,pass_hazard,pass_c_index,pass_all
+exp,0.1185352187873645,inf,0.7864698531525559,False,False,True,False
+weibull,0.028121472125426594,8624.820537314861,0.7862485197587091,True,False,True,False
+gompertz,0.039577458524575615,0.07790204822860863,0.7864421562258038,True,False,True,False
+piecewise,0.07765966708015415,109.71079002537853,0.785885545581964,True,False,True,False

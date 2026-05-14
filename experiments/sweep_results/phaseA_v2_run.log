@@ -1,0 +1,88 @@
+/home/yago/Documents/00_PhD/Research/PINN_hazard_calibration/src/evaluation/metrics.py:75: RuntimeWarning: overflow encountered in exp
+  est_hazard = np.exp(gamma_hat)
+/home/yago/Documents/00_PhD/Research/PINN_hazard_calibration/src/evaluation/metrics.py:75: RuntimeWarning: overflow encountered in exp
+  est_hazard = np.exp(gamma_hat)
+/home/yago/Documents/00_PhD/Research/PINN_hazard_calibration/src/evaluation/metrics.py:75: RuntimeWarning: overflow encountered in exp
+  est_hazard = np.exp(gamma_hat)
+/home/yago/Documents/00_PhD/Research/PINN_hazard_calibration/src/evaluation/metrics.py:75: RuntimeWarning: overflow encountered in exp
+  est_hazard = np.exp(gamma_hat)
+/home/yago/Documents/00_PhD/Research/PINN_hazard_calibration/src/evaluation/metrics.py:75: RuntimeWarning: overflow encountered in exp
+  est_hazard = np.exp(gamma_hat)
+/home/yago/Documents/00_PhD/Research/PINN_hazard_calibration/src/evaluation/metrics.py:75: RuntimeWarning: overflow encountered in exp
+  est_hazard = np.exp(gamma_hat)
+/home/yago/Documents/00_PhD/Research/PINN_hazard_calibration/src/evaluation/metrics.py:75: RuntimeWarning: overflow encountered in exp
+  est_hazard = np.exp(gamma_hat)
+/home/yago/Documents/00_PhD/Research/PINN_hazard_calibration/src/evaluation/metrics.py:75: RuntimeWarning: overflow encountered in exp
+  est_hazard = np.exp(gamma_hat)
+
+>>> Sweep cell: phaseA_v2_exp  (config: experiments/configs/phaseA_v2_exp.yaml)
+[ 2000/12000] total=-2.5608  mle=-3.9490  pl=5.5530  ode=0.0000  ic=0.0000  mono=0.0000  slope=0.0000  ref=0.0000  (8.6s)
+[ 4000/12000] total=-7.4005  mle=-8.7888  pl=5.5530  ode=0.0000  ic=0.0000  mono=0.0000  slope=0.0000  ref=0.0000  (16.8s)
+[ 6000/12000] total=-13.0055  mle=-14.3938  pl=5.5529  ode=0.0000  ic=0.0000  mono=0.0000  slope=0.0000  ref=0.0000  (27.8s)
+[ 8000/12000] total=-16.9452  mle=-18.3335  pl=5.5529  ode=0.0000  ic=0.0000  mono=0.0000  slope=0.0000  ref=0.0000  (36.4s)
+[10000/12000] total=-22.0271  mle=-23.4153  pl=5.5529  ode=0.0000  ic=0.0000  mono=0.0000  slope=0.0000  ref=0.0000  (44.3s)
+[12000/12000] total=-30.3158  mle=-31.7040  pl=5.5529  ode=0.0000  ic=0.0000  mono=0.0000  slope=0.0000  ref=0.0000  (52.1s)
+
+==================================================
+Evaluation complete:
+  β RMSE:    0.0022  ✓
+  Haz IRMSE: inf  ✗
+  C-index:   0.7865  ✓
+  All passed: False
+==================================================
+Experiment saved to experiments/results/phaseA_v2_exp
+
+>>> Sweep cell: phaseA_v2_weibull  (config: experiments/configs/phaseA_v2_weibull.yaml)
+[ 2000/12000] total=-0.3695  mle=-1.7208  pl=5.4051  ode=0.0000  ic=0.0000  mono=0.0000  slope=0.0000  ref=0.0000  (5.6s)
+[ 4000/12000] total=-7.7204  mle=-9.0717  pl=5.4051  ode=0.0000  ic=0.0000  mono=0.0000  slope=0.0000  ref=0.0000  (11.2s)
+[ 6000/12000] total=-15.3473  mle=-16.6986  pl=5.4051  ode=0.0000  ic=0.0000  mono=0.0000  slope=0.0000  ref=0.0000  (16.7s)
+[ 8000/12000] total=-24.8231  mle=-26.1743  pl=5.4051  ode=0.0000  ic=0.0000  mono=0.0000  slope=0.0000  ref=0.0000  (21.7s)
+[10000/12000] total=-34.5169  mle=-35.8682  pl=5.4051  ode=0.0000  ic=0.0000  mono=0.0000  slope=0.0000  ref=0.0000  (26.8s)
+[12000/12000] total=-47.0002  mle=-48.3515  pl=5.4051  ode=0.0000  ic=0.0000  mono=0.0000  slope=0.0000  ref=0.0000  (32.2s)
+
+==================================================
+Evaluation complete:
+  β RMSE:    0.0246  ✓
+  Haz IRMSE: inf  ✗
+  C-index:   0.7862  ✓
+  All passed: False
+==================================================
+Experiment saved to experiments/results/phaseA_v2_weibull
+
+>>> Sweep cell: phaseA_v2_gompertz  (config: experiments/configs/phaseA_v2_gompertz.yaml)
+[ 2000/12000] total=-9.7506  mle=-11.0950  pl=5.3778  ode=0.0000  ic=0.0000  mono=0.0000  slope=0.0000  ref=0.0000  (6.3s)
+[ 4000/12000] total=-32.4365  mle=-33.7809  pl=5.3778  ode=0.0000  ic=0.0000  mono=0.0000  slope=0.0000  ref=0.0000  (12.7s)
+[ 6000/12000] total=-57.4974  mle=-58.8418  pl=5.3778  ode=0.0000  ic=0.0000  mono=0.0000  slope=0.0000  ref=0.0000  (17.7s)
+[ 8000/12000] total=-82.5763  mle=-83.9207  pl=5.3778  ode=0.0000  ic=0.0000  mono=0.0000  slope=0.0000  ref=0.0000  (22.8s)
+[10000/12000] total=-112.3203  mle=-113.6648  pl=5.3778  ode=0.0000  ic=0.0000  mono=0.0000  slope=0.0000  ref=0.0000  (28.5s)
+[12000/12000] total=-142.5101  mle=-143.8546  pl=5.3778  ode=0.0000  ic=0.0000  mono=0.0000  slope=0.0000  ref=0.0000  (33.6s)
+
+==================================================
+Evaluation complete:
+  β RMSE:    0.0151  ✓
+  Haz IRMSE: inf  ✗
+  C-index:   0.7864  ✓
+  All passed: False
+==================================================
+Experiment saved to experiments/results/phaseA_v2_gompertz
+
+>>> Sweep cell: phaseA_v2_piecewise  (config: experiments/configs/phaseA_v2_piecewise.yaml)
+[ 2000/12000] total=-10.5949  mle=-11.9565  pl=5.4464  ode=0.0000  ic=0.0000  mono=0.0000  slope=0.0000  ref=0.0000  (4.8s)
+[ 4000/12000] total=-34.7861  mle=-36.1477  pl=5.4464  ode=0.0000  ic=0.0000  mono=0.0000  slope=0.0000  ref=0.0000  (9.5s)
+[ 6000/12000] total=-62.3170  mle=-63.6786  pl=5.4464  ode=0.0000  ic=0.0000  mono=0.0000  slope=0.0000  ref=0.0000  (13.9s)
+[ 8000/12000] total=-91.8058  mle=-93.1674  pl=5.4464  ode=0.0000  ic=0.0000  mono=0.0000  slope=0.0000  ref=0.0000  (19.0s)
+[10000/12000] total=-124.5493  mle=-125.9109  pl=5.4464  ode=0.0000  ic=0.0000  mono=0.0000  slope=0.0000  ref=0.0000  (23.6s)
+[12000/12000] total=-166.1191  mle=-167.4807  pl=5.4464  ode=0.0000  ic=0.0000  mono=0.0000  slope=0.0000  ref=0.0000  (28.1s)
+
+==================================================
+Evaluation complete:
+  β RMSE:    0.0120  ✓
+  Haz IRMSE: inf  ✗
+  C-index:   0.7859  ✓
+  All passed: False
+==================================================
+Experiment saved to experiments/results/phaseA_v2_piecewise
+
+=== Sweep complete: phaseA_v2 ===
+Summary written to experiments/sweep_results/phaseA_v2/summary.csv|json|md
+Architectures passing all thresholds: 0/4

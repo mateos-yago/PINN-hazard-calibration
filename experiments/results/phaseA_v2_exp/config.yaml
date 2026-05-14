@@ -1,0 +1,56 @@
+checkpoint_every: 2000
+collocation_method: uniform
+experiment_name: phaseA_v2_exp
+gradient_clip: 1.0
+loss_weights:
+  baseline_ref: 0.0
+  ic: 0.0
+  mle: 1.0
+  monotonic: 0.0
+  ode: 0.0
+  pl: 0.25
+lr: 0.0003
+lr_beta: 0.0001
+lr_coefficient: 0.001
+lr_patience: 200
+lr_scheduler: reduce_on_plateau
+model_config:
+  coefficient:
+    activation: silu
+    hidden_dims:
+    - 64
+    - 64
+    time_features:
+    - t
+    - log_t
+    use_layer_norm: false
+  n_covariates: 1
+  parameterization: quadrature
+  quadrature_grid: 200
+  surrogate:
+    activation: silu
+    hidden_dims:
+    - 64
+    - 64
+    - 64
+    use_layer_norm: false
+n_collocation_points: 500
+n_epochs: 12000
+optimizer_name: adamw
+rationale: "Sweep cell \u2014 architecture phaseA_v2, baseline exp, p=1. phaseA_v2\
+  \ \u2014 ODE-by-construction via trapezoidal quadrature. Removes the \u039B-surrogate's\
+  \ freedom; \u03B3 becomes the only function under L_MLE+L_PL pressure. Tests whether\
+  \ the v1 catastrophic hazard failure was a structural identifiability problem of\
+  \ the two-network PINN formulation."
+simulation_config:
+  baseline: ExponentialBaseline
+  baseline_params:
+    lam: 0.5
+  beta:
+  - 1.5
+  censoring_rate: 0.3
+  censoring_type: random_exponential
+  n_covariates: 1
+  n_samples: 1000
+  random_seed: 42
+weight_decay: 0.0001

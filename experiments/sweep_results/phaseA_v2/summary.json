@@ -1,0 +1,62 @@
+[
+  {
+    "baseline": "exp",
+    "beta_rmse": 0.00217860876604159,
+    "beta_mae": 0.00217860876604159,
+    "beta_max_abs_err": 0.00217860876604159,
+    "hazard_irmse": Infinity,
+    "hazard_imse": Infinity,
+    "hazard_max_err": Infinity,
+    "c_index": 0.7864698531525559,
+    "pass_beta": true,
+    "pass_hazard": false,
+    "pass_c_index": true,
+    "pass_all": false,
+    "_arch": "phaseA_v2"
+  },
+  {
+    "baseline": "weibull",
+    "beta_rmse": 0.02463280741149032,
+    "beta_mae": 0.02463280741149032,
+    "beta_max_abs_err": 0.02463280741149032,
+    "hazard_irmse": Infinity,
+    "hazard_imse": Infinity,
+    "hazard_max_err": Infinity,
+    "c_index": 0.7862485197587091,
+    "pass_beta": true,
+    "pass_hazard": false,
+    "pass_c_index": true,
+    "pass_all": false,
+    "_arch": "phaseA_v2"
+  },
+  {
+    "baseline": "gompertz",
+    "beta_rmse": 0.01511159214296276,
+    "beta_mae": 0.01511159214296276,
+    "beta_max_abs_err": 0.01511159214296276,
+    "hazard_irmse": Infinity,
+    "hazard_imse": Infinity,
+    "hazard_max_err": Infinity,
+    "c_index": 0.7864421562258038,
+    "pass_beta": true,
+    "pass_hazard": false,
+    "pass_c_index": true,
+    "pass_all": false,
+    "_arch": "phaseA_v2"
+  },
+  {
+    "baseline": "piecewise",
+    "beta_rmse": 0.012018273259231993,
+    "beta_mae": 0.012018273259231993,
+    "beta_max_abs_err": 0.012018273259231993,
+    "hazard_irmse": Infinity,
+    "hazard_imse": Infinity,
+    "hazard_max_err": Infinity,
+    "c_index": 0.785885545581964,
+    "pass_beta": true,
+    "pass_hazard": false,
+    "pass_c_index": true,
+    "pass_all": false,
+    "_arch": "phaseA_v2"
+  }
+]

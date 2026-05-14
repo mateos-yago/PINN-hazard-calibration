@@ -1,0 +1,60 @@
+checkpoint_every: 2000
+collocation_method: uniform
+experiment_name: phaseA_v5_exp
+gradient_clip: 1.0
+loss_weights:
+  baseline_ref: 0.0
+  ic: 0.0
+  mle: 1.0
+  monotonic: 0.1
+  ode: 0.0
+  pl: 0.25
+  smoothness: 0.1
+lr: 0.0003
+lr_beta: 0.0001
+lr_coefficient: 0.001
+lr_patience: 200
+lr_scheduler: reduce_on_plateau
+model_config:
+  coefficient:
+    activation: silu
+    hidden_dims:
+    - 64
+    - 64
+    input_clamp_max: 1.0
+    input_clamp_min: 0.01
+    time_features:
+    - t
+    - log_t
+    use_layer_norm: false
+  n_covariates: 1
+  parameterization: quadrature
+  quadrature_grid: 200
+  surrogate:
+    activation: silu
+    hidden_dims:
+    - 64
+    - 64
+    - 64
+    use_layer_norm: false
+n_collocation_points: 500
+n_epochs: 12000
+optimizer_name: adamw
+rationale: "Sweep cell \u2014 architecture phaseA_v5, baseline exp, p=1. phaseA_v5\
+  \ \u2014 add boundary clamp on \u03B3-network input (constant extrapolation past\
+  \ training range) and FD smoothness=0.1 to dampen in-range drift. The clamp fixes\
+  \ IRMSE=inf failures in v4 caused by uncontrolled MLP extrapolation at t_norm outside\
+  \ [0, 1]. Smoothness companions monotonic by penalising curvature (drift) while\
+  \ monotonic forbids descent."
+simulation_config:
+  baseline: ExponentialBaseline
+  baseline_params:
+    lam: 0.5
+  beta:
+  - 1.5
+  censoring_rate: 0.3
+  censoring_type: random_exponential
+  n_covariates: 1
+  n_samples: 1000
+  random_seed: 42
+weight_decay: 0.0001

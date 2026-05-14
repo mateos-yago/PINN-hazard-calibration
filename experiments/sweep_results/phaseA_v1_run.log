@@ -1,0 +1,72 @@
+
+>>> Sweep cell: phaseA_v1_exp  (config: experiments/configs/phaseA_v1_exp.yaml)
+[ 2000/12000] total=0.7371  mle=-0.7778  pl=5.5540  ode=0.1115  ic=0.0149  mono=0.0000  slope=0.0000  ref=0.0000  (12.9s)
+[ 4000/12000] total=0.5767  mle=-0.8553  pl=5.5541  ode=0.0376  ic=0.0058  mono=0.0000  slope=0.0000  ref=0.0000  (25.5s)
+[ 6000/12000] total=0.5356  mle=-0.8874  pl=5.5541  ode=0.0308  ic=0.0037  mono=0.0000  slope=0.0000  ref=0.0000  (37.4s)
+[ 8000/12000] total=0.5089  mle=-0.9105  pl=5.5541  ode=0.0283  ic=0.0025  mono=0.0000  slope=0.0000  ref=0.0000  (49.9s)
+[10000/12000] total=0.4939  mle=-0.9254  pl=5.5540  ode=0.0284  ic=0.0023  mono=0.0000  slope=0.0000  ref=0.0000  (62.4s)
+[12000/12000] total=0.4885  mle=-0.9297  pl=5.5540  ode=0.0275  ic=0.0022  mono=0.0000  slope=0.0000  ref=0.0000  (76.4s)
+
+==================================================
+Evaluation complete:
+  β RMSE:    0.0565  ✓
+  Haz IRMSE: 0.6193  ✗
+  C-index:   0.7865  ✓
+  All passed: False
+==================================================
+Experiment saved to experiments/results/phaseA_v1_exp
+
+>>> Sweep cell: phaseA_v1_weibull  (config: experiments/configs/phaseA_v1_weibull.yaml)
+[ 2000/12000] total=0.8532  mle=-0.6454  pl=5.4059  ode=0.1383  ic=0.0088  mono=0.0000  slope=0.0000  ref=0.0000  (9.3s)
+[ 4000/12000] total=0.6773  mle=-0.7381  pl=5.4062  ode=0.0607  ic=0.0031  mono=0.0000  slope=0.0000  ref=0.0000  (18.5s)
+[ 6000/12000] total=0.6635  mle=-0.7783  pl=5.4064  ode=0.0885  ic=0.0017  mono=0.0000  slope=0.0000  ref=0.0000  (27.7s)
+[ 8000/12000] total=0.6059  mle=-0.7935  pl=5.4065  ode=0.0467  ic=0.0011  mono=0.0000  slope=0.0000  ref=0.0000  (37.3s)
+[10000/12000] total=0.5918  mle=-0.8067  pl=5.4067  ode=0.0461  ic=0.0009  mono=0.0000  slope=0.0000  ref=0.0000  (46.6s)
+[12000/12000] total=0.5793  mle=-0.8170  pl=5.4068  ode=0.0439  ic=0.0007  mono=0.0000  slope=0.0000  ref=0.0000  (55.8s)
+
+==================================================
+Evaluation complete:
+  β RMSE:    0.0651  ✓
+  Haz IRMSE: 1.0255  ✗
+  C-index:   0.7862  ✓
+  All passed: False
+==================================================
+Experiment saved to experiments/results/phaseA_v1_weibull
+
+>>> Sweep cell: phaseA_v1_gompertz  (config: experiments/configs/phaseA_v1_gompertz.yaml)
+[ 2000/12000] total=1.1254  mle=-0.3982  pl=5.3794  ode=0.1632  ic=0.0155  mono=0.0000  slope=0.0000  ref=0.0000  (10.6s)
+[ 4000/12000] total=0.9387  mle=-0.5419  pl=5.3814  ode=0.1209  ic=0.0143  mono=0.0000  slope=0.0000  ref=0.0000  (20.9s)
+[ 6000/12000] total=0.7886  mle=-0.6332  pl=5.3825  ode=0.0691  ic=0.0071  mono=0.0000  slope=0.0000  ref=0.0000  (31.5s)
+[ 8000/12000] total=0.7634  mle=-0.6602  pl=5.3831  ode=0.0728  ic=0.0050  mono=0.0000  slope=0.0000  ref=0.0000  (41.7s)
+[10000/12000] total=0.7497  mle=-0.6694  pl=5.3833  ode=0.0691  ic=0.0042  mono=0.0000  slope=0.0000  ref=0.0000  (52.0s)
+[12000/12000] total=0.7387  mle=-0.6776  pl=5.3836  ode=0.0668  ic=0.0036  mono=0.0000  slope=0.0000  ref=0.0000  (62.6s)
+
+==================================================
+Evaluation complete:
+  β RMSE:    0.1491  ✗
+  Haz IRMSE: 0.7405  ✗
+  C-index:   0.7864  ✓
+  All passed: False
+==================================================
+Experiment saved to experiments/results/phaseA_v1_gompertz
+
+>>> Sweep cell: phaseA_v1_piecewise  (config: experiments/configs/phaseA_v1_piecewise.yaml)
+[ 2000/12000] total=0.9839  mle=-0.4967  pl=5.4474  ode=0.1052  ic=0.0136  mono=0.0000  slope=0.0000  ref=0.0000  (9.1s)
+[ 4000/12000] total=0.8463  mle=-0.6010  pl=5.4485  ode=0.0766  ic=0.0084  mono=0.0000  slope=0.0000  ref=0.0000  (18.3s)
+[ 6000/12000] total=0.7558  mle=-0.6643  pl=5.4499  ode=0.0518  ic=0.0058  mono=0.0000  slope=0.0000  ref=0.0000  (27.6s)
+[ 8000/12000] total=0.7039  mle=-0.7034  pl=5.4512  ode=0.0402  ic=0.0043  mono=0.0000  slope=0.0000  ref=0.0000  (37.3s)
+[10000/12000] total=0.6753  mle=-0.7266  pl=5.4520  ode=0.0357  ic=0.0032  mono=0.0000  slope=0.0000  ref=0.0000  (46.5s)
+[12000/12000] total=0.6591  mle=-0.7391  pl=5.4527  ode=0.0323  ic=0.0027  mono=0.0000  slope=0.0000  ref=0.0000  (55.8s)
+
+==================================================
+Evaluation complete:
+  β RMSE:    0.1534  ✗
+  Haz IRMSE: 0.7729  ✗
+  C-index:   0.7859  ✓
+  All passed: False
+==================================================
+Experiment saved to experiments/results/phaseA_v1_piecewise
+
+=== Sweep complete: phaseA_v1 ===
+Summary written to experiments/sweep_results/phaseA_v1/summary.csv|json|md
+Architectures passing all thresholds: 0/4

@@ -99,6 +99,7 @@ class Trainer:
             "ic": [],
             "monotonic": [],
             "min_slope": [],
+            "smoothness": [],
             "baseline_ref": [],
         }
 
@@ -129,7 +130,7 @@ class Trainer:
             total_val = total_loss.item()
             history["epoch"].append(epoch)
             history["total"].append(total_val)
-            for k in ("mle", "pl", "ode", "ic", "monotonic", "min_slope", "baseline_ref"):
+            for k in ("mle", "pl", "ode", "ic", "monotonic", "min_slope", "smoothness", "baseline_ref"):
                 history[k].append(components.get(k, 0.0))
 
             if total_val < self._best_loss:
@@ -147,6 +148,7 @@ class Trainer:
                     f"ic={components.get('ic', 0):.4f}  "
                     f"mono={components.get('monotonic', 0):.4f}  "
                     f"slope={components.get('min_slope', 0):.4f}  "
+                    f"smth={components.get('smoothness', 0):.4f}  "
                     f"ref={components.get('baseline_ref', 0):.4f}  "
                     f"({elapsed:.1f}s)"
                 )

@@ -1,0 +1,57 @@
+# Phase A v3: quadrature + smoothness regularizer
+#
+# Diff vs phaseA_v2: add `BaselineSmoothnessLoss` (penalty on (d²γ/dt²)²) with
+# weight 0.1. Removes the v2 MLE-spike pathology without committing to any
+# monotonicity / sign assumption on γ. Shape-agnostic.
+#
+# All other settings inherited from v2: quadrature parameterization, MLE+PL only
+# (ode and ic exact by construction), Cox PL β init.
+
+rationale: "phaseA_v3 — quadrature parameterization + γ second-derivative smoothness
+  prior (weight 0.1). v2 demonstrated that quadrature recovers β and C-index
+  perfectly but the unregularized neural γ collapses into a delta-like spike that
+  blows up MLE without bound. Smoothness is the minimal data-agnostic prior that
+  removes that pathology while preserving baseline-agnosticism."
+
+model:
+  parameterization: quadrature
+  quadrature_grid: 200
+  surrogate:
+    hidden_dims: [64, 64, 64]
+    activation: silu
+    use_layer_norm: false
+  coefficient:
+    hidden_dims: [64, 64]
+    activation: silu
+    use_layer_norm: false
+    time_features: [t, log_t]
+
+training:
+  beta_initialization: cox_pl
+  n_epochs: 12000
+  lr: 0.0003
+  lr_coefficient: 0.001
+  lr_beta: 0.0001
+  optimizer_name: adamw
+  weight_decay: 0.0001
+  n_collocation_points: 500
+  collocation_method: uniform
+  checkpoint_every: 2000
+  gradient_clip: 1.0
+  lr_scheduler: reduce_on_plateau
+  lr_patience: 200
+  loss_weights:
+    mle: 1.0
+    pl: 0.25
+    ode: 0.0
+    ic: 0.0
+    monotonic: 0.0
+    smoothness: 0.1
+    baseline_ref: 0.0
+
+evaluation:
+  hazard_time_extension: 0.10
+  thresholds:
+    beta_rmse: 0.10
+    hazard_irmse: 0.05
+    c_index: 0.75

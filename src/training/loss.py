@@ -141,6 +141,30 @@ class BaselineMinSlopeLoss(nn.Module):
         return (torch.relu(self.margin - dgamma_dt) ** 2).mean()
 
 
+class BaselineSmoothnessLoss(nn.Module):
+    """Discrete-Laplacian penalty on γ over an interior grid.
+
+    Shape-agnostic regularizer that removes the MLE-spike pathology of a free
+    continuous γ. Implemented as a finite-difference second derivative on an
+    interior grid `[t_min, 1]` (avoiding the t=0 log-time singularity that
+    blows up an autograd implementation when log_t is in the input features).
+    """
+
+    def __init__(self, n_grid: int = 200, t_min: float = 0.01):
+        super().__init__()
+        self.n_grid = int(n_grid)
+        self.t_min = float(t_min)
+
+    def forward(self, model: HazardPINN, t_col: torch.Tensor) -> torch.Tensor:
+        device, dtype = t_col.device, t_col.dtype
+        t_grid = torch.linspace(
+            self.t_min, 1.0, self.n_grid, device=device, dtype=dtype
+        ).unsqueeze(1)
+        gamma = model.coefficient(t_grid).squeeze(-1)  # [n_grid]
+        d2 = gamma[2:] - 2.0 * gamma[1:-1] + gamma[:-2]  # [n_grid - 2]
+        return (d2 ** 2).mean()
+
+
 class BaselineReferenceLoss(nn.Module):
     """Supervised gamma loss for simulated experiments with known baseline."""
 
@@ -187,6 +211,7 @@ class CompositeLoss(nn.Module):
             "monotonic": 0.0,
             "min_slope": 0.0,
             "min_slope_margin": 0.25,
+            "smoothness": 0.0,
             "baseline_ref": 0.0,
         }
         w = defaults if weights is None else {**defaults, **weights}
@@ -197,6 +222,7 @@ class CompositeLoss(nn.Module):
         self.w_monotonic = w["monotonic"]
         self.w_min_slope = w["min_slope"]
         self.min_slope_margin = w["min_slope_margin"]
+        self.w_smoothness = w["smoothness"]
         self.w_baseline_ref = w["baseline_ref"]
 
         self.mle_loss = MLELoss()
@@ -205,6 +231,7 @@ class CompositeLoss(nn.Module):
         self.ic_loss = InitialConditionLoss()
         self.monotonic_loss = BaselineMonotonicityLoss()
         self.min_slope_loss = BaselineMinSlopeLoss(margin=self.min_slope_margin)
+        self.smoothness_loss = BaselineSmoothnessLoss()
         self.baseline_ref_loss = BaselineReferenceLoss(baseline_hazard, pipeline, true_beta)
 
     def forward(
@@ -261,6 +288,11 @@ class CompositeLoss(nn.Module):
             l = self.min_slope_loss(model, t_col)
             components["min_slope"] = l
             total = total + self.w_min_slope * l
+
+        if self.w_smoothness > 0:
+            l = self.smoothness_loss(model, t_col)
+            components["smoothness"] = l
+            total = total + self.w_smoothness * l
 
         if self.w_baseline_ref > 0:
             l = self.baseline_ref_loss(model, t_col)

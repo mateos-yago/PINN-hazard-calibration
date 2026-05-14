@@ -138,10 +138,10 @@ def concordance_index(model: HazardPINN, dataset: SurvivalDataset) -> float:
 
 def plot_loss_history(loss_history: Dict[str, List], save_path: str) -> None:
     """Plot total loss and each component over training epochs."""
-    fig, axes = plt.subplots(2, 4, figsize=(18, 8))
+    fig, axes = plt.subplots(3, 3, figsize=(16, 11))
     axes = axes.ravel()
 
-    keys = ["total", "mle", "pl", "ode", "ic", "monotonic", "min_slope", "baseline_ref"]
+    keys = ["total", "mle", "pl", "ode", "ic", "monotonic", "min_slope", "smoothness", "baseline_ref"]
     titles = [
         "Total Loss",
         "L_MLE",
@@ -150,6 +150,7 @@ def plot_loss_history(loss_history: Dict[str, List], save_path: str) -> None:
         "L_IC (initial cond.)",
         "L_monotonic",
         "L_min_slope",
+        "L_smoothness",
         "L_baseline_ref",
     ]
     epochs = loss_history["epoch"]
@@ -160,10 +161,14 @@ def plot_loss_history(loss_history: Dict[str, List], save_path: str) -> None:
             ax.plot(epochs, vals)
             ax.set_title(title)
             ax.set_xlabel("Epoch")
-            ax.set_yscale("log" if min(v for v in vals if v > 0) > 0 else "linear")
+            positives = [v for v in vals if v > 0]
+            ax.set_yscale("log" if positives else "linear")
             ax.grid(True, alpha=0.3)
+        else:
+            ax.set_title(f"{title} (disabled)")
+            ax.set_xlabel("Epoch")
+            ax.axis("off")
 
-    axes[-1].axis("off")
     plt.tight_layout()
     plt.savefig(save_path, dpi=120, bbox_inches="tight")
     plt.close()

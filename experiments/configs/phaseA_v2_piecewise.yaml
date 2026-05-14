@@ -1,0 +1,68 @@
+rationale: "Sweep cell \u2014 architecture phaseA_v2, baseline piecewise, p=1. phaseA_v2\
+  \ \u2014 ODE-by-construction via trapezoidal quadrature. Removes the \u039B-surrogate's\
+  \ freedom; \u03B3 becomes the only function under L_MLE+L_PL pressure. Tests whether\
+  \ the v1 catastrophic hazard failure was a structural identifiability problem of\
+  \ the two-network PINN formulation."
+model:
+  parameterization: quadrature
+  quadrature_grid: 200
+  surrogate:
+    hidden_dims:
+    - 64
+    - 64
+    - 64
+    activation: silu
+    use_layer_norm: false
+  coefficient:
+    hidden_dims:
+    - 64
+    - 64
+    activation: silu
+    use_layer_norm: false
+    time_features:
+    - t
+    - log_t
+  n_covariates: 1
+training:
+  beta_initialization: cox_pl
+  n_epochs: 12000
+  lr: 0.0003
+  lr_coefficient: 0.001
+  lr_beta: 0.0001
+  optimizer_name: adamw
+  weight_decay: 0.0001
+  n_collocation_points: 500
+  collocation_method: uniform
+  checkpoint_every: 2000
+  gradient_clip: 1.0
+  lr_scheduler: reduce_on_plateau
+  lr_patience: 200
+  loss_weights:
+    mle: 1.0
+    pl: 0.25
+    ode: 0.0
+    ic: 0.0
+    monotonic: 0.0
+    baseline_ref: 0.0
+evaluation:
+  hazard_time_extension: 0.1
+  thresholds:
+    beta_rmse: 0.1
+    hazard_irmse: 0.05
+    c_index: 0.75
+experiment_name: phaseA_v2_piecewise
+simulation:
+  baseline: PiecewiseConstantBaseline
+  baseline_params:
+    cutpoints:
+    - 2.0
+    rates:
+    - 0.2
+    - 0.6
+  beta:
+  - 1.5
+  n_covariates: 1
+  n_samples: 1000
+  censoring_rate: 0.3
+  censoring_type: random_exponential
+  random_seed: 42

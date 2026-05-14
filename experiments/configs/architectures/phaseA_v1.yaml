@@ -1,0 +1,55 @@
+# Phase A v1: baseline-agnostic bootstrap
+#
+# Diff vs Stage 4 v14: baseline_ref weight = 0 (oracle removed); monotonic = 0
+# (γ-monotonicity assumes a shape that fails for piecewise / non-monotonic
+# baselines, so it is off by default in the new campaign).
+#
+# Everything else inherited from v14: SiLU, AdamW, separate LRs for β /
+# coefficient / surrogate, Cox PL β initialization, log_t time feature.
+#
+# Note: `simulation` and `experiment_name` are intentionally omitted — they are
+# injected by the sweep runner from BASELINE_PRESETS + BETA_BY_P[p].
+
+rationale: "phaseA_v1 — Stage 4 v14 architecture stripped of BaselineReferenceLoss
+  and γ-monotonicity. Baseline measurement: where does the current best fail
+  without the oracle? Per-baseline failure pattern guides the next lever."
+
+model:
+  surrogate:
+    hidden_dims: [64, 64, 64]
+    activation: silu
+    use_layer_norm: false
+  coefficient:
+    hidden_dims: [64, 64]
+    activation: silu
+    use_layer_norm: false
+    time_features: [t, log_t]
+
+training:
+  beta_initialization: cox_pl
+  n_epochs: 12000
+  lr: 0.0003
+  lr_coefficient: 0.001
+  lr_beta: 0.0001
+  optimizer_name: adamw
+  weight_decay: 0.0001
+  n_collocation_points: 500
+  collocation_method: uniform
+  checkpoint_every: 2000
+  gradient_clip: 1.0
+  lr_scheduler: reduce_on_plateau
+  lr_patience: 200
+  loss_weights:
+    mle: 1.0
+    pl: 0.25
+    ode: 1.0
+    ic: 1.0
+    monotonic: 0.0
+    baseline_ref: 0.0
+
+evaluation:
+  hazard_time_extension: 0.10
+  thresholds:
+    beta_rmse: 0.10
+    hazard_irmse: 0.05
+    c_index: 0.75

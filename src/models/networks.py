@@ -65,7 +65,15 @@ class SurrogateNetwork(nn.Module):
 
 
 class CoefficientNetwork(nn.Module):
-    """γ_θ(t): approximates log-baseline hazard. Output is unconstrained."""
+    """γ_θ(t): approximates log-baseline hazard. Output is unconstrained.
+
+    The input `t` is clamped to `[input_clamp_min, input_clamp_max]` before
+    feature transformation, which gives **constant extrapolation past the
+    training time range**. This is essential when γ is the only learned
+    function (e.g. under quadrature parameterization) — without it, an MLP
+    extrapolates arbitrarily and can produce overflow at evaluation t-values
+    outside [0, 1].
+    """
 
     def __init__(
         self,
@@ -74,10 +82,14 @@ class CoefficientNetwork(nn.Module):
         use_layer_norm: bool = False,
         time_features: List[str] = ("t",),
         log_time_offset: float = 1e-6,
+        input_clamp_min: float = 0.0,
+        input_clamp_max: float = 1.0,
     ):
         super().__init__()
         self.time_features = list(time_features)
         self.log_time_offset = float(log_time_offset)
+        self.input_clamp_min = float(input_clamp_min)
+        self.input_clamp_max = float(input_clamp_max)
         valid = {"t", "log_t", "log_t_shifted"}
         unknown = set(self.time_features) - valid
         if unknown:
@@ -87,6 +99,7 @@ class CoefficientNetwork(nn.Module):
         )
 
     def _transform_time(self, t: torch.Tensor) -> torch.Tensor:
+        t = t.clamp(min=self.input_clamp_min, max=self.input_clamp_max)
         features = []
         for feature in self.time_features:
             if feature == "t":

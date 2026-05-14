@@ -1,0 +1,63 @@
+# Phase A v5: v4 + boundary clamp + FD smoothness
+#
+# Diff vs phaseA_v4:
+# - coefficient.input_clamp_min: 0.01 — constant extrapolation past lower boundary.
+# - coefficient.input_clamp_max: 1.00 — constant extrapolation past upper boundary.
+# - smoothness: 0.1 — FD second-difference penalty on grid [0.01, 1.0] to dampen
+#   in-range drift (v4's Exp run drifted from γ≈log(0.5·data_range) at t=0 upward
+#   monotonically; monotonic-only permits this).
+#
+# The clamp keeps evaluation queries outside [0.01, 1.0] from triggering wild
+# MLP extrapolation (which produced IRMSE=inf in v4 even for baselines whose
+# bulk fit was sensible).
+
+rationale: "phaseA_v5 — add boundary clamp on γ-network input (constant extrapolation
+  past training range) and FD smoothness=0.1 to dampen in-range drift. The
+  clamp fixes IRMSE=inf failures in v4 caused by uncontrolled MLP extrapolation
+  at t_norm outside [0, 1]. Smoothness companions monotonic by penalising
+  curvature (drift) while monotonic forbids descent."
+
+model:
+  parameterization: quadrature
+  quadrature_grid: 200
+  surrogate:
+    hidden_dims: [64, 64, 64]
+    activation: silu
+    use_layer_norm: false
+  coefficient:
+    hidden_dims: [64, 64]
+    activation: silu
+    use_layer_norm: false
+    time_features: [t, log_t]
+    input_clamp_min: 0.01
+    input_clamp_max: 1.00
+
+training:
+  beta_initialization: cox_pl
+  n_epochs: 12000
+  lr: 0.0003
+  lr_coefficient: 0.001
+  lr_beta: 0.0001
+  optimizer_name: adamw
+  weight_decay: 0.0001
+  n_collocation_points: 500
+  collocation_method: uniform
+  checkpoint_every: 2000
+  gradient_clip: 1.0
+  lr_scheduler: reduce_on_plateau
+  lr_patience: 200
+  loss_weights:
+    mle: 1.0
+    pl: 0.25
+    ode: 0.0
+    ic: 0.0
+    monotonic: 0.1
+    smoothness: 0.1
+    baseline_ref: 0.0
+
+evaluation:
+  hazard_time_extension: 0.10
+  thresholds:
+    beta_rmse: 0.10
+    hazard_irmse: 0.05
+    c_index: 0.75

@@ -68,23 +68,22 @@ def initialize_beta_from_cox_pl(model: HazardPINN, dataset) -> None:
         print(f"Warning: Cox PL beta initialization failed: {result.message}")
 
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--config", required=True)
-    parser.add_argument("--results_dir", default="experiments/results")
-    args = parser.parse_args()
+def run_from_config(cfg: dict, results_dir: str = "experiments/results") -> dict:
+    """Run a single experiment given an already-loaded config dict and return its metrics."""
+    import torch
+    # Determinism: seed torch's RNGs so model init + training are reproducible.
+    # Fall back to seed=42 if simulation.random_seed is unset.
+    torch_seed = int(cfg.get("simulation", {}).get("random_seed", 42))
+    torch.manual_seed(torch_seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(torch_seed)
 
-    cfg = load_config(args.config)
-
-    # Simulate data
     simulator = build_simulator(cfg["simulation"])
     df = simulator.simulate(cfg["simulation"]["n_samples"])
 
-    # Preprocess
     pipeline = SurvivalDataPipeline()
     dataset = pipeline.fit_transform(df)
 
-    # Build model
     model_cfg = copy.deepcopy(cfg["model"])
     coeff_cfg = model_cfg.get("coefficient", {})
     if "log_t_shifted" in coeff_cfg.get("time_features", []):
@@ -96,7 +95,6 @@ def main():
     if cfg["training"].get("beta_initialization") == "cox_pl":
         initialize_beta_from_cox_pl(model, dataset)
 
-    # Build loss
     loss_weights = cfg["training"]["loss_weights"]
     loss_fn = CompositeLoss(
         weights=loss_weights,
@@ -105,7 +103,6 @@ def main():
         true_beta=simulator.beta if loss_weights.get("baseline_ref", 0.0) > 0 else None,
     )
 
-    # Build trainer config
     t_cfg = cfg["training"]
     exp_config = ExperimentConfig(
         experiment_name=cfg["experiment_name"],
@@ -129,13 +126,10 @@ def main():
 
     trainer = Trainer(model, loss_fn, exp_config)
     loss_history = trainer.train(dataset)
-
-    # Load best weights before evaluation
     trainer._load_best_weights(model)
 
-    # Evaluate
     report = EvaluationReport()
-    exp_dir = os.path.join(args.results_dir, cfg["experiment_name"])
+    exp_dir = os.path.join(results_dir, cfg["experiment_name"])
     eval_cfg = cfg.get("evaluation", {})
     metrics = report.generate(
         model,
@@ -148,8 +142,17 @@ def main():
         hazard_time_extension=eval_cfg.get("hazard_time_extension", 0.10),
     )
 
-    # Save experiment
-    trainer.save_experiment(args.results_dir, metrics)
+    trainer.save_experiment(results_dir, metrics)
+    return metrics
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", required=True)
+    parser.add_argument("--results_dir", default="experiments/results")
+    args = parser.parse_args()
+    cfg = load_config(args.config)
+    run_from_config(cfg, args.results_dir)
 
 
 if __name__ == "__main__":

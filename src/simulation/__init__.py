@@ -3,6 +3,7 @@ from .cox_simulator import (
     ExponentialBaseline,
     WeibullBaseline,
     GompertzBaseline,
+    BathtubBaseline,
     PiecewiseConstantBaseline,
     CoxSimulator,
 )
@@ -12,6 +13,7 @@ __all__ = [
     "ExponentialBaseline",
     "WeibullBaseline",
     "GompertzBaseline",
+    "BathtubBaseline",
     "PiecewiseConstantBaseline",
     "CoxSimulator",
 ]

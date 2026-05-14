@@ -45,6 +45,44 @@ BASELINE_PRESETS: Dict[str, Dict] = {
         "baseline": "PiecewiseConstantBaseline",
         "baseline_params": {"cutpoints": [2.0], "rates": [0.2, 0.6]},
     },
+    "pc_complex_up": {
+        "baseline": "PiecewiseConstantBaseline",
+        "baseline_params": {
+            "cutpoints": [0.5, 1.5, 3.0, 6.0],
+            "rates": [0.08, 0.18, 0.45, 0.90, 1.50],
+        },
+    },
+    "pc_late_jump": {
+        "baseline": "PiecewiseConstantBaseline",
+        "baseline_params": {
+            "cutpoints": [1.0, 3.0, 6.0, 9.0],
+            "rates": [0.06, 0.10, 0.16, 0.80, 1.60],
+        },
+    },
+    "pc_nonmonotone_hump": {
+        "baseline": "PiecewiseConstantBaseline",
+        "baseline_params": {
+            "cutpoints": [0.5, 1.5, 3.0, 6.0],
+            "rates": [0.12, 0.80, 1.60, 0.35, 0.15],
+        },
+    },
+    "pc_zigzag": {
+        "baseline": "PiecewiseConstantBaseline",
+        "baseline_params": {
+            "cutpoints": [0.5, 1.0, 2.0, 4.0, 7.0],
+            "rates": [0.60, 0.12, 1.00, 0.20, 0.80, 0.25],
+        },
+    },
+    "bathtub": {
+        "baseline": "BathtubBaseline",
+        "baseline_params": {
+            "floor": 0.08,
+            "early_amp": 0.90,
+            "decay": 1.60,
+            "late_amp": 0.02,
+            "growth": 0.35,
+        },
+    },
 }
 
 BETA_BY_P: Dict[int, List[float]] = {

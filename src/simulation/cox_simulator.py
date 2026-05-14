@@ -101,6 +101,47 @@ class GompertzBaseline(BaselineHazard):
         return np.log(1 + u * self.a / self.b) / self.a
 
 
+class BathtubBaseline(BaselineHazard):
+    """Non-monotone bathtub hazard: high early risk, valley, then late rise.
+
+    α(t) = floor + early_amp·exp(-decay·t) + late_amp·(exp(growth·t) - 1)
+
+    The cumulative hazard is closed form; inverse still uses a scalar root find
+    on the closed-form cumulative hazard.
+    """
+
+    def __init__(
+        self,
+        floor: float = 0.08,
+        early_amp: float = 0.9,
+        decay: float = 1.6,
+        late_amp: float = 0.02,
+        growth: float = 0.35,
+    ):
+        self.floor = floor
+        self.early_amp = early_amp
+        self.decay = decay
+        self.late_amp = late_amp
+        self.growth = growth
+
+    def hazard(self, t: np.ndarray) -> np.ndarray:
+        t = np.asarray(t, dtype=float)
+        return (
+            self.floor
+            + self.early_amp * np.exp(-self.decay * t)
+            + self.late_amp * (np.exp(self.growth * t) - 1.0)
+        )
+
+    def cumulative_hazard(self, t: np.ndarray) -> np.ndarray:
+        t = np.asarray(t, dtype=float)
+        return (
+            self.floor * t
+            + self.early_amp * (1.0 - np.exp(-self.decay * t)) / self.decay
+            + self.late_amp * (np.exp(self.growth * t) - 1.0) / self.growth
+            - self.late_amp * t
+        )
+
+
 class PiecewiseConstantBaseline(BaselineHazard):
     """Piecewise constant hazard defined by cut points and rates."""
 

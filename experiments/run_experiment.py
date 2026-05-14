@@ -15,7 +15,14 @@ from scipy.optimize import minimize
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.simulation import CoxSimulator, ExponentialBaseline, WeibullBaseline, GompertzBaseline, PiecewiseConstantBaseline
+from src.simulation import (
+    BathtubBaseline,
+    CoxSimulator,
+    ExponentialBaseline,
+    GompertzBaseline,
+    PiecewiseConstantBaseline,
+    WeibullBaseline,
+)
 from src.data import SurvivalDataPipeline
 from src.models import HazardPINN
 from src.training import CompositeLoss, Trainer, ExperimentConfig
@@ -27,6 +34,7 @@ _BASELINES = {
     "WeibullBaseline": WeibullBaseline,
     "GompertzBaseline": GompertzBaseline,
     "PiecewiseConstantBaseline": PiecewiseConstantBaseline,
+    "BathtubBaseline": BathtubBaseline,
 }
 
 

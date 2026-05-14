@@ -1092,3 +1092,60 @@ The remaining viable directions are outside this rejected lever family:
 data-derived Nelson-Aalen/self-supervised baseline priors, a spline γ basis with
 density-adaptive knots, or a non-uniform smoothness penalty. Each would need its
 own matched ablation.
+
+## Phase B stress tests — fixed phaseB_v3 recipe  [2026-05-14]
+
+### phaseB_v3_stress
+
+**Diff vs phaseB_v3:** No model/training change. Added out-of-panel baseline
+hazard presets and ran the exact `phaseB_v3` recipe under a separate architecture
+id to avoid overwriting canonical `phaseB_v3` artifacts.
+
+**Stress baselines added:**
+- `pc_complex_up`: five-level monotone step-up hazard
+  (`rates=[0.08,0.18,0.45,0.90,1.50]`).
+- `pc_late_jump`: low early hazard with two late jumps
+  (`rates=[0.06,0.10,0.16,0.80,1.60]`).
+- `pc_nonmonotone_hump`: piecewise hump with late down-step
+  (`rates=[0.12,0.80,1.60,0.35,0.15]`).
+- `pc_zigzag`: alternating high/low step hazard
+  (`rates=[0.60,0.12,1.00,0.20,0.80,0.25]`).
+- `bathtub`: smooth non-monotone baseline with early decline and late rise.
+
+**Rationale:** Stress-test the best Phase B architecture on harder baseline
+families: more complex piecewise-constant hazards and explicitly non-monotone
+hazards. This is a diagnostic run only; no tuning was performed.
+
+**Sweep results (p=4):**
+
+| Baseline | β RMSE | Hazard IRMSE | C-index | All pass |
+|---|---|---|---|---|
+| pc_complex_up | 0.0586 ✓ | 0.3727 ✗ | 0.7653 ✓ | ✗ |
+| pc_late_jump | 0.0569 ✓ | 1.2294 ✗ | 0.7626 ✓ | ✗ |
+| pc_nonmonotone_hump | 0.0702 ✓ | 18.7519 ✗ | 0.7631 ✓ | ✗ |
+| pc_zigzag | 0.0870 ✓ | 2.5728 ✗ | 0.7654 ✓ | ✗ |
+| bathtub | 0.1266 ✗ | 0.3843 ✗ | 0.7641 ✓ | ✗ |
+
+**Failure modes:**
+- β and C-index remain robust on four of five stress baselines; the bathtub
+  baseline is the only β failure.
+- Complex monotone step hazards (`pc_complex_up`, `pc_late_jump`) are learned as
+  smooth rising curves with right-tail overshoot. The architecture cannot
+  represent sharp plateaus/jumps under the global smoothness penalty.
+- Non-monotone piecewise hazards (`pc_nonmonotone_hump`, `pc_zigzag`) fail
+  structurally: the monotonicity loss and smoothness prior project the hazard
+  toward a smoothed non-decreasing/flat curve, so true down-steps are missed.
+- The smooth bathtub baseline confirms the same limitation in a non-piecewise
+  setting: early decline is damped and late exponential rise is underfit.
+
+**Conclusion:** `phaseB_v3` is a strong β/ranking architecture, but it is not
+baseline-shape agnostic for hazard recovery. It is specifically biased toward
+smooth monotone hazards and fails sharp steps, late jumps, and non-monotone
+baseline shapes.
+
+**Next planned change:** If hazard-shape recovery remains the goal, the next
+model family should relax the monotonic γ prior and replace global MLP
+smoothness with a more local basis or prior: e.g. spline γ with adaptive knots,
+piecewise-constant γ, or a data-derived Nelson-Aalen/self-supervised baseline
+anchor. The current `phaseB_v3` recipe should not be expected to pass
+non-monotone or high-jump baseline stress tests without such a change.

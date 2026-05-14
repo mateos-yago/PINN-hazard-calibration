@@ -7,21 +7,29 @@ from typing import Dict, List
 import torch
 import torch.nn as nn
 
-from .networks import SurrogateNetwork, CoefficientNetwork
+from .networks import SurrogateNetwork, CoefficientNetwork, BaselineCumHazardNetwork
 
 
 class HazardPINN(nn.Module):
     """Full PINN model for Cox hazard estimation.
 
-    Components:
-        surrogate  (Λ_φ): (t, x) → cumulative hazard
-        coefficient (γ_θ): t → log baseline hazard
-        beta: learnable covariate coefficient vector
+    Three parameterizations are supported:
+
+    - 'surrogate': canonical PINN. Λ_φ(t, x) is a free MLP. ODE and IC are
+      enforced softly via L_ODE and L_IC. Exhibits the v1 identifiability
+      collapse on this data without an oracle (see phaseA_v1).
+    - 'quadrature': ODE-by-construction. Λ(t, x) = exp(xᵀβ) · ∫₀ᵗ exp(γ(s)) ds
+      evaluated by trapezoidal rule. ODE and IC are exact to discretization
+      error; L_ODE, L_IC contribute nothing useful.
+    - 'factored_surrogate': true PINN with the v1 identifiability fix. The
+      surrogate is restricted to depend only on t — Λ_φ(t) — and the model
+      enforces the Cox PH factorization Λ(t, x) = exp(xᵀβ) · Λ_φ(t)
+      architecturally. The ODE residual (now genuinely active) ties Λ_φ to γ.
     """
 
     def __init__(
         self,
-        surrogate: SurrogateNetwork,
+        surrogate,
         coefficient: CoefficientNetwork,
         n_covariates: int,
         parameterization: str = "surrogate",
@@ -32,7 +40,7 @@ class HazardPINN(nn.Module):
         self.coefficient = coefficient
         self.beta = nn.Parameter(torch.zeros(n_covariates))
         self.n_covariates = n_covariates
-        if parameterization not in ("surrogate", "quadrature"):
+        if parameterization not in ("surrogate", "quadrature", "factored_surrogate"):
             raise ValueError(f"Unknown parameterization: {parameterization}")
         self.parameterization = parameterization
         self.quadrature_grid = int(quadrature_grid)
@@ -65,6 +73,12 @@ class HazardPINN(nn.Module):
         xb = x @ self.beta  # [B]
         return (G_at_t * torch.exp(xb)).unsqueeze(-1)  # [B, 1]
 
+    def _lambda_factored(self, t: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
+        """Compute Λ(t, x) = exp(xᵀβ) · Λ_φ(t) with the 1-D baseline surrogate."""
+        Lambda_baseline = self.surrogate(t)  # [B, 1]; depends only on t
+        xb = (x @ self.beta).unsqueeze(-1)  # [B, 1]
+        return Lambda_baseline * torch.exp(xb)
+
     def forward(self, t: torch.Tensor, x: torch.Tensor) -> Dict[str, torch.Tensor]:
         """
         Args:
@@ -78,6 +92,8 @@ class HazardPINN(nn.Module):
         """
         if self.parameterization == "quadrature":
             Lambda_hat = self._lambda_quadrature(t, x)
+        elif self.parameterization == "factored_surrogate":
+            Lambda_hat = self._lambda_factored(t, x)
         else:
             Lambda_hat = self.surrogate(t, x)
         gamma_hat = self.coefficient(t)
@@ -99,6 +115,20 @@ class HazardPINN(nn.Module):
             gamma = self.coefficient(t)  # [B, 1]
             xb = (x @ self.beta).unsqueeze(-1)  # [B, 1]
             return torch.exp(gamma + xb)
+
+        if self.parameterization == "factored_surrogate":
+            # Λ(t, x) = exp(xᵀβ) · Λ_φ(t)  →  ∂Λ/∂t = exp(xᵀβ) · ∂Λ_φ/∂t
+            t_req = t.requires_grad_(True)
+            Lambda_baseline = self.surrogate(t_req)
+            grad_baseline = torch.autograd.grad(
+                Lambda_baseline,
+                t_req,
+                grad_outputs=torch.ones_like(Lambda_baseline),
+                create_graph=True,
+                retain_graph=True,
+            )[0]
+            xb = (x @ self.beta).unsqueeze(-1)
+            return grad_baseline * torch.exp(xb)
 
         t_req = t.requires_grad_(True)
         Lambda = self.surrogate(t_req, x)
@@ -134,12 +164,19 @@ class HazardPINN(nn.Module):
         parameterization = config.get("parameterization", "surrogate")
         quadrature_grid = int(config.get("quadrature_grid", 200))
 
-        surrogate = SurrogateNetwork(
-            n_covariates=p,
-            hidden_dims=s_cfg.get("hidden_dims", [64, 64, 64]),
-            activation=s_cfg.get("activation", "tanh"),
-            use_layer_norm=s_cfg.get("use_layer_norm", False),
-        )
+        if parameterization == "factored_surrogate":
+            surrogate = BaselineCumHazardNetwork(
+                hidden_dims=s_cfg.get("hidden_dims", [64, 64, 64]),
+                activation=s_cfg.get("activation", "silu"),
+                use_layer_norm=s_cfg.get("use_layer_norm", False),
+            )
+        else:
+            surrogate = SurrogateNetwork(
+                n_covariates=p,
+                hidden_dims=s_cfg.get("hidden_dims", [64, 64, 64]),
+                activation=s_cfg.get("activation", "tanh"),
+                use_layer_norm=s_cfg.get("use_layer_norm", False),
+            )
         coefficient = CoefficientNetwork(
             hidden_dims=c_cfg.get("hidden_dims", [32, 32]),
             activation=c_cfg.get("activation", "tanh"),

@@ -1,0 +1,61 @@
+# Phase C v3: strong ODE coupling
+#
+# Diff vs phaseC_v2: ode 1 → 100, ic 1 → 100. v2 with monotonic+smoothness
+# on γ improved hazard fit dramatically vs v1 (exp 0.57→0.03, piecewise
+# 0.59→0.09) but β RMSE remained ~0.15–0.23 (vs phaseB_v3's ~0.06 under
+# quadrature). The free Λ_φ can drift from ∫exp(γ) and force β to compensate
+# in MLE.
+#
+# Hypothesis: with ODE weight 100× larger, Λ_φ is tightly bound to the
+# integral of exp(γ) at every collocation point. This recovers (approximately)
+# the quadrature parameterization's β-stability while remaining a true PINN
+# with soft ODE/IC residuals doing real work.
+
+rationale: "phaseC_v3 — strong ODE/IC coupling. v2 showed γ regularizers fix
+  the v1 hump-and-decay but β still degrades because Λ_φ is free to drift
+  from ∫exp(γ). Cranking ode/ic 100× should force Λ_φ to track the integral
+  of exp(γ) tightly enough that β recovers."
+
+model:
+  parameterization: factored_surrogate
+  surrogate:
+    hidden_dims: [64, 64, 64]
+    activation: silu
+    use_layer_norm: false
+  coefficient:
+    hidden_dims: [64, 64]
+    activation: silu
+    use_layer_norm: false
+    time_features: [t, log_t]
+    input_clamp_min: 0.01
+    input_clamp_max: 1.00
+
+training:
+  beta_initialization: cox_pl
+  n_epochs: 12000
+  lr: 0.0003
+  lr_coefficient: 0.001
+  lr_beta: 0.0001
+  optimizer_name: adamw
+  weight_decay: 0.0001
+  n_collocation_points: 500
+  collocation_method: uniform
+  checkpoint_every: 2000
+  gradient_clip: 1.0
+  lr_scheduler: reduce_on_plateau
+  lr_patience: 200
+  loss_weights:
+    mle: 1.0
+    pl: 0.25
+    ode: 100.0
+    ic: 100.0
+    monotonic: 0.1
+    smoothness: 10.0
+    baseline_ref: 0.0
+
+evaluation:
+  hazard_time_extension: 0.10
+  thresholds:
+    beta_rmse: 0.10
+    hazard_irmse: 0.05
+    c_index: 0.75

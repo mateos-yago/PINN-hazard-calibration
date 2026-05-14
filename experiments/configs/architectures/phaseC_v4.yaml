@@ -1,0 +1,60 @@
+# Phase C v4: freeze β after Cox PL init
+#
+# Diff vs phaseC_v2: lr_beta 1e-4 → 0 (β frozen at Cox PL initialization).
+# v3 (strong ODE) backfired catastrophically. Back to v2 framework. The v2
+# β degradation came from MLE pushing β to compensate for Λ_φ drifting from
+# ∫exp(γ). Freezing β isolates the hazard fit and tells us whether the
+# remaining hazard error is intrinsic to the architecture or a β-coupling
+# artifact.
+#
+# Cox PL provides a statistically well-conditioned β estimator. With β
+# frozen, the only learned components are γ (with smoothness+monotonic) and
+# Λ_φ (with soft ODE+IC coupling to γ).
+
+rationale: "phaseC_v4 — freeze β at Cox PL init (lr_beta=0) on top of the
+  v2 factored PINN. Tests whether v2's β degradation was the cause of its
+  hazard miss or just a coupled symptom."
+
+model:
+  parameterization: factored_surrogate
+  surrogate:
+    hidden_dims: [64, 64, 64]
+    activation: silu
+    use_layer_norm: false
+  coefficient:
+    hidden_dims: [64, 64]
+    activation: silu
+    use_layer_norm: false
+    time_features: [t, log_t]
+    input_clamp_min: 0.01
+    input_clamp_max: 1.00
+
+training:
+  beta_initialization: cox_pl
+  n_epochs: 12000
+  lr: 0.0003
+  lr_coefficient: 0.001
+  lr_beta: 0.0
+  optimizer_name: adamw
+  weight_decay: 0.0001
+  n_collocation_points: 500
+  collocation_method: uniform
+  checkpoint_every: 2000
+  gradient_clip: 1.0
+  lr_scheduler: reduce_on_plateau
+  lr_patience: 200
+  loss_weights:
+    mle: 1.0
+    pl: 0.25
+    ode: 1.0
+    ic: 1.0
+    monotonic: 0.1
+    smoothness: 10.0
+    baseline_ref: 0.0
+
+evaluation:
+  hazard_time_extension: 0.10
+  thresholds:
+    beta_rmse: 0.10
+    hazard_irmse: 0.05
+    c_index: 0.75

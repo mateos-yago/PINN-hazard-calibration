@@ -1,0 +1,58 @@
+checkpoint_every: 2000
+collocation_method: uniform
+experiment_name: phaseC_v3_exp
+gradient_clip: 1.0
+loss_weights:
+  baseline_ref: 0.0
+  ic: 100.0
+  mle: 1.0
+  monotonic: 0.1
+  ode: 100.0
+  pl: 0.25
+  smoothness: 10.0
+lr: 0.0003
+lr_beta: 0.0001
+lr_coefficient: 0.001
+lr_patience: 200
+lr_scheduler: reduce_on_plateau
+model_config:
+  coefficient:
+    activation: silu
+    hidden_dims:
+    - 64
+    - 64
+    input_clamp_max: 1.0
+    input_clamp_min: 0.01
+    time_features:
+    - t
+    - log_t
+    use_layer_norm: false
+  n_covariates: 1
+  parameterization: factored_surrogate
+  surrogate:
+    activation: silu
+    hidden_dims:
+    - 64
+    - 64
+    - 64
+    use_layer_norm: false
+n_collocation_points: 500
+n_epochs: 12000
+optimizer_name: adamw
+rationale: "Sweep cell \u2014 architecture phaseC_v3, baseline exp, p=1. phaseC_v3\
+  \ \u2014 strong ODE/IC coupling. v2 showed \u03B3 regularizers fix the v1 hump-and-decay\
+  \ but \u03B2 still degrades because \u039B_\u03C6 is free to drift from \u222Bexp(\u03B3\
+  ). Cranking ode/ic 100\xD7 should force \u039B_\u03C6 to track the integral of exp(\u03B3\
+  ) tightly enough that \u03B2 recovers."
+simulation_config:
+  baseline: ExponentialBaseline
+  baseline_params:
+    lam: 0.5
+  beta:
+  - 1.5
+  censoring_rate: 0.3
+  censoring_type: random_exponential
+  n_covariates: 1
+  n_samples: 1000
+  random_seed: 42
+weight_decay: 0.0001

@@ -1,0 +1,78 @@
+# Phase C v1: TRUE PINN with factored surrogate
+#
+# Revives the canonical PINN form (free Λ surrogate + soft ODE/IC residuals)
+# while fixing the v1 identifiability collapse via architectural factorization:
+#
+#   Λ(t, x) = exp(xᵀβ) · Λ_φ(t)
+#
+# The surrogate Λ_φ now depends only on t (not on (t,x)) and is enforced to
+# satisfy the proportional-hazards factorization architecturally. The
+# remaining 1-D ODE
+#
+#   ∂Λ_φ/∂t  =  exp(γ(t))         (after dividing the original ODE by exp(xᵀβ))
+#   Λ_φ(0)   =  0
+#
+# is then enforced softly by L_ODE and L_IC.
+#
+# Why this should solve the v1 identifiability problem:
+#  - The free 2-D surrogate in v1 had enough MLP capacity to fit Λ(Y_i, x_i)
+#    at every observed event independently, satisfying MLE locally while
+#    leaving a residual ODE error that disconnected γ from Λ.
+#  - With Λ_φ restricted to a 1-D function of t, the surrogate cannot
+#    represent per-(t,x) interactions. MLE pressure now propagates through
+#    Λ_φ as a function of t alone, and the ODE residual genuinely ties γ to
+#    ∂Λ_φ/∂t (because both are 1-D functions of t and there's no x freedom
+#    to absorb the residual).
+#
+# Loss weights: pure-PINN with ode and ic active; no quadrature, no smoothness,
+# no monotonic, no baseline_ref oracle. mle + pl + ode + ic only.
+
+rationale: "phaseC_v1 — TRUE PINN with the factored surrogate identifiability
+  fix. Restores the canonical soft-ODE/soft-IC PINN form (parameterization
+  surrogate, not quadrature) and tests whether restricting Λ_φ to be a 1-D
+  function of t alone is enough to make γ identifiable without an oracle and
+  without smoothness/monotonic shape priors."
+
+model:
+  parameterization: factored_surrogate
+  surrogate:
+    hidden_dims: [64, 64, 64]
+    activation: silu
+    use_layer_norm: false
+  coefficient:
+    hidden_dims: [64, 64]
+    activation: silu
+    use_layer_norm: false
+    time_features: [t, log_t]
+    input_clamp_min: 0.01
+    input_clamp_max: 1.00
+
+training:
+  beta_initialization: cox_pl
+  n_epochs: 12000
+  lr: 0.0003
+  lr_coefficient: 0.001
+  lr_beta: 0.0001
+  optimizer_name: adamw
+  weight_decay: 0.0001
+  n_collocation_points: 500
+  collocation_method: uniform
+  checkpoint_every: 2000
+  gradient_clip: 1.0
+  lr_scheduler: reduce_on_plateau
+  lr_patience: 200
+  loss_weights:
+    mle: 1.0
+    pl: 0.25
+    ode: 1.0
+    ic: 1.0
+    monotonic: 0.0
+    smoothness: 0.0
+    baseline_ref: 0.0
+
+evaluation:
+  hazard_time_extension: 0.10
+  thresholds:
+    beta_rmse: 0.10
+    hazard_irmse: 0.05
+    c_index: 0.75

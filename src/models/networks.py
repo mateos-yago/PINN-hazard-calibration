@@ -37,6 +37,39 @@ def _build_mlp(
     return nn.Sequential(*layers)
 
 
+class BaselineCumHazardNetwork(nn.Module):
+    """Λ_φ(t): 1-D approximation of the baseline cumulative hazard.
+
+    Used by the 'factored_surrogate' PINN parameterization in HazardPINN:
+    `Λ(t, x) = exp(xᵀβ) · Λ_φ(t)`. Restricting the surrogate to depend only on
+    t removes the time-covariate interaction freedom that caused the v1
+    identifiability collapse (`phaseA_v1`): under the Cox PH assumption Λ
+    factorizes, so the surrogate inherits no extra capacity to absorb
+    likelihood signal at the expense of γ.
+
+    Output is non-negative (Softplus) since Λ ≥ 0.
+    """
+
+    def __init__(
+        self,
+        hidden_dims: List[int] = (64, 64, 64),
+        activation: str = "silu",
+        use_layer_norm: bool = False,
+    ):
+        super().__init__()
+        self.net = _build_mlp(1, list(hidden_dims), 1, activation, use_layer_norm)
+        self.output_act = nn.Softplus()
+
+    def forward(self, t: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            t: shape [batch, 1]
+        Returns:
+            Λ_φ(t): shape [batch, 1], non-negative
+        """
+        return self.output_act(self.net(t))
+
+
 class SurrogateNetwork(nn.Module):
     """Λ_φ(t, x): approximates cumulative hazard. Output is always ≥ 0 (Softplus)."""
 

@@ -153,7 +153,9 @@ class InitialConditionLoss(nn.Module):
     ) -> torch.Tensor:
         n = covariates.shape[0]
         t_zero = torch.zeros(n, 1, device=covariates.device, dtype=covariates.dtype)
-        Lambda_at_zero = model.surrogate(t_zero, covariates)
+        # Use the model's forward so this works for every parameterization
+        # ('surrogate', 'quadrature', 'factored_surrogate').
+        Lambda_at_zero = model(t_zero, covariates)["Lambda_hat"]
         return (Lambda_at_zero ** 2).mean()
 
 
